@@ -22,7 +22,7 @@ if ! psql -qc 'select 1' >/dev/null 2>&1; then
     echo "SKIP: cannot connect to postgres"; exit 0
   fi
 fi
-run(){ if [ "$SU" = 1 ]; then su postgres -c "psql $1"; else psql $1; fi }
+run(){ if [ "$SU" = 1 ]; then su postgres -c "psql $1"; else eval "psql $1"; fi }
 
 run "-qc 'drop database if exists jobtap_test;'"
 run "-qc 'create database jobtap_test;'"
