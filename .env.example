@@ -1,0 +1,13 @@
+SUPABASE_URL=https://YOURPROJECT.supabase.co
+SUPABASE_SERVICE_KEY=eyJ...   # service role key (server only, never in the app)
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=...
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+APP_URL=https://jobtap.app
+RUN_SCHEDULER=true
+PORT=3000
+INTERNAL_API_KEY=generate-a-long-random-string   # x-api-key for server-to-server calls (scripts, dashboard backend)
+PUBLIC_URL=https://engine.jobtap.app             # exact public base URL — required for Twilio signature validation behind Railway's proxy
+# TWILIO_VALIDATE=false                          # local testing ONLY — never set in production
+SUPABASE_ANON_KEY=eyJ...   # anon/public key — safe for browser, used by the /app dashboard

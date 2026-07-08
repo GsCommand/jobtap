@@ -1,0 +1,1033 @@
+<!doctype html>
+<!-- JobTap Dashboard v5 — every screen from the Screen Flow Board, one file, zero build.
+     Nav (per flow board): Home · Jobs · Clients · Quotes · Campaigns · More
+     More holds: Money, Texts, Setup wizard, Settings.
+     Data: Supabase JS direct (RLS). Sends: engine API with user JWT.
+     Photos: Supabase Storage bucket 'job-photos'. Proof card: client-side canvas. -->
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JobTap</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--bg:#1a2e1a;--card:#fff;--primary:#2D6A22;--dark:#243d24;--money:#7bc67b;--r:18px;--muted:#5b6b5b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#22301f;min-height:100vh}
+a{color:inherit;text-decoration:none}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;color:#fff;max-width:960px;margin:0 auto}
+#topbar b{font-size:19px}#topbar b span{color:var(--money)}
+#main{max-width:960px;margin:0 auto;padding:0 14px 92px}
+.card{background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.card.dark{background:var(--dark);color:#fff}
+h2{font-size:16.5px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{background:var(--dark);color:#fff;border-radius:var(--r);padding:15px;text-align:center}
+.stat .n{font-size:24px;font-weight:800;color:var(--money)}.stat .l{font-size:11px;color:rgba(255,255,255,.75);margin-top:4px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1px solid #edf2ed;gap:10px}
+.row:last-child{border-bottom:0}.row.click{cursor:pointer}
+.t{font-weight:600;font-size:14.5px}.s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.pill{padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-green{background:#eef7ee;color:var(--primary)}.p-money{background:var(--money);color:#143014}
+.p-gray{background:#eee;color:#555}.p-red{background:#fdecea;color:#b03a2e}.p-amber{background:#fef3e2;color:#9a6b1f}
+button,.btn{background:var(--primary);color:#fff;border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center}
+button.sm{padding:8px 12px;font-size:13px}
+button.ghost{background:#eef7ee;color:var(--primary)}
+button.warn{background:#c0392b}
+button:disabled{opacity:.55}
+.wide{display:block;width:100%}
+input,select,textarea{width:100%;border:1.5px solid #d7e2d7;border-radius:12px;padding:11px 12px;font-size:15px;background:#fbfdfb;font-family:inherit;outline:none;margin-bottom:10px}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);background:#fff}
+label{display:block;font-size:12.5px;font-weight:700;margin-bottom:4px}
+#nav{position:fixed;bottom:0;left:0;right:0;background:var(--dark);display:flex;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:50}
+#nav a{color:rgba(255,255,255,.6);font-size:10px;font-weight:700;text-align:center;padding:6px 6px;border-radius:10px;min-width:48px}
+#nav a.on{color:var(--money);background:rgba(123,198,123,.12)}
+#nav a i{display:block;font-size:18px;font-style:normal;margin-bottom:2px}
+.empty{text-align:center;color:var(--muted);padding:24px 10px;font-size:14px}
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;display:none;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin:14px 0 10px;color:#fff;gap:8px;flex-wrap:wrap}
+.hdr h1{font-size:19px}
+.hdr .back{color:var(--money);font-size:13px;font-weight:700}
+#login{max-width:400px;margin:8vh auto;padding:0 16px}
+.msg-in,.msg-out{max-width:78%;padding:9px 13px;border-radius:14px;font-size:14px;margin:5px 0;line-height:1.4}
+.msg-in{background:#eef2ee;margin-right:auto}.msg-out{background:var(--primary);color:#fff;margin-left:auto}
+.mrow{display:flex;flex-direction:column}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button{background:var(--dark);color:rgba(255,255,255,.7);padding:9px 16px;font-size:13px}
+.tabs button.on{background:var(--money);color:#143014}
+.bigbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.bigbtns .btn{padding:16px 10px;font-size:14px}
+.steps{display:flex;gap:6px;margin-bottom:16px}
+.steps div{flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,.2)}
+.steps div.done{background:var(--money)}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin:8px 0}
+.photo-grid img{width:100%;height:90px;object-fit:cover;border-radius:10px}
+.photo-grid .ph{position:relative}.photo-grid .ph b{position:absolute;bottom:4px;left:4px;font-size:9px;background:rgba(0,0,0,.65);color:#fff;padding:2px 6px;border-radius:6px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.actions button,.actions .btn{flex:1;min-width:130px}
+canvas{display:none}
+#map{height:62vh;border-radius:var(--r);margin-bottom:10px}
+.mtotal{position:relative;background:var(--dark);color:#fff;border-radius:12px;padding:12px;text-align:center;font-weight:800;font-size:20px}
+.mtotal small{display:block;font-size:11px;color:var(--money);font-weight:600}
+@media(min-width:720px){#nav{position:sticky;top:0;bottom:auto;max-width:960px;margin:0 auto;border-radius:0 0 16px 16px}}
+</style></head><body>
+<div id="toast"></div><div id="app"></div><canvas id="cardCanvas" width="1200" height="630"></canvas>
+<script>
+const SB_URL='__SUPABASE_URL__',SB_KEY='__SUPABASE_ANON_KEY__';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+let S={session:null,biz:null,cache:{}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+Number(n||0).toFixed(2);
+const ago=d=>{if(!d)return'';const m=(Date.now()-new Date(d))/6e4;if(m<60)return Math.max(1,m|0)+'m';if(m<1440)return(m/60|0)+'h';return(m/1440|0)+'d'};
+const fdate=d=>d?new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—';
+const fdt=d=>d?new Date(d).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+const daysUntil=d=>Math.ceil((new Date(d)-Date.now())/864e5);
+const REASONS={a2p_pending:'A2P pending — texting is off',no_consent:'no SMS consent on file',opted_out:'customer opted out',quiet_hours:'quiet hours — will not send now',invalid_number:'invalid phone number'};
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600)}
+async function api(path,opts={}){
+  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.session.access_token,...(opts.headers||{})}});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
+const setting=(k,d)=>((S.biz.settings||{})[k]??d);
+async function saveSetting(k,v){const st={...(S.biz.settings||{}),[k]:v};
+  const{error}=await sb.from('businesses').update({settings:st}).eq('id',S.biz.id);
+  if(error){toast(error.message);return false}S.biz.settings=st;return true}
+const q=t=>sb.from(t).select('*').eq('business_id',S.biz.id);
+async function ensureClients(force){if(!S.cache.clients||force){const{data}=await q('clients').is('archived_at',null).order('first_name').limit(1000);S.cache.clients=data||[]}return S.cache.clients}
+const clientName=c=>c?(c.first_name+' '+(c.last_name||'')).trim():'—';
+const byId=list=>Object.fromEntries((list||[]).map(x=>[x.id,x]));
+
+// ================= BOOT / LOGIN =================
+(async()=>{const{data:{session}}=await sb.auth.getSession();S.session=session;
+  sb.auth.onAuthStateChange((_e,s)=>{S.session=s;if(!s)renderLogin()});
+  if(!session)return renderLogin();await loadBiz()})();
+async function loadBiz(){
+  const{data:biz}=await sb.from('businesses').select('*').eq('owner_id',S.session.user.id).limit(1).maybeSingle();
+  if(!biz){$('#app').innerHTML='<div id="login"><div class="card"><h2>No business found</h2><p class="s" style="margin:8px 0">This account has no business attached yet.</p><button class="wide" onclick="createBiz()">Create my business</button><button class="wide ghost" style="margin-top:8px" onclick="sb.auth.signOut()">Sign out</button></div></div>';return}
+  S.biz=biz;shell();window.addEventListener('hashchange',route);route();
+}
+window.createBiz=async()=>{
+  const name=prompt('Business name?');if(!name)return;
+  const{data,error}=await sb.from('businesses').insert({owner_id:S.session.user.id,name,plan:'trial'}).select().single();
+  if(error)return toast(error.message);S.biz=data;shell();location.hash='#/setup';route();
+};
+function renderLogin(){
+  $('#app').innerHTML=`<div id="login"><div style="text-align:center;color:#fff;font-size:26px;font-weight:800;margin-bottom:18px">Job<span style="color:var(--money)">Tap</span><div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.6);margin-top:6px">Never miss another job</div></div>
+  <div class="card"><div class="tabs"><button id="tb_in" class="on">Sign in</button><button id="tb_up">Create account</button></div>
+  <label>Email</label><input id="li_e" type="email" autocomplete="email">
+  <label>Password</label><input id="li_p" type="password">
+  <button id="li_b" class="wide">Sign In</button>
+  <div id="li_err" style="color:#b03a2e;font-size:13px;margin-top:10px;display:none"></div></div></div>`;
+  let mode='in';
+  $('#tb_in').onclick=()=>{mode='in';$('#tb_in').classList.add('on');$('#tb_up').classList.remove('on');$('#li_b').textContent='Sign In'};
+  $('#tb_up').onclick=()=>{mode='up';$('#tb_up').classList.add('on');$('#tb_in').classList.remove('on');$('#li_b').textContent='Start Free Trial'};
+  $('#li_b').onclick=async()=>{$('#li_b').disabled=true;
+    const email=$('#li_e').value.trim(),password=$('#li_p').value;
+    const{data,error}=mode==='in'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});
+    if(error||!data.session){$('#li_err').textContent=error?error.message:'Check your email to confirm, then sign in.';$('#li_err').style.display='block';$('#li_b').disabled=false;return}
+    S.session=data.session;await loadBiz()};
+}
+
+// ================= SHELL / ROUTER =================
+const NAV=[['#/','⌂','Home'],['#/jobs','🗓','Jobs'],['#/clients','👥','Clients'],['#/quotes','📋','Quotes'],['#/campaigns','📣','Campaigns'],['#/more','⋯','More']];
+function shell(){$('#app').innerHTML=`<div id="topbar"><b>Job<span>Tap</span></b><div style="text-align:right"><div style="font-size:12px;color:rgba(255,255,255,.7)">${esc(S.biz.name)}</div></div></div>
+<div id="nav">${NAV.map(n=>`<a href="${n[0]}" data-h="${n[0]}"><i>${n[1]}</i>${n[2]}</a>`).join('')}</div><div id="main"></div>`}
+function route(){
+  const h=location.hash||'#/';
+  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',h===a.dataset.h||(a.dataset.h!=='#/'&&h.startsWith(a.dataset.h))));
+  $('#main').innerHTML='<div class="empty">Loading…</div>';
+  if(h.startsWith('#/client/'))return vClient(h.split('/')[2]);
+  if(h.startsWith('#/lead/'))return vLead(h.split('/')[2]);
+  if(h.startsWith('#/job/'))return vJob(h.split('/')[2]);
+  if(h.startsWith('#/thread/'))return vThread(decodeURIComponent(h.split('/')[2]));
+  if(h.startsWith('#/quote-new'))return vQuoteBuilder(new URLSearchParams(h.split('?')[1]||''));
+  if(h.startsWith('#/measure'))return vMeasure(new URLSearchParams(h.split('?')[1]||''));
+  ({'#/':vHome,'#/jobs':vJobs,'#/clients':vClients,'#/quotes':vQuotes,'#/campaigns':vCampaigns,'#/more':vMore,
+    '#/leads':vLeads,'#/money':vMoney,'#/texts':vTexts,'#/settings':vSettings,'#/setup':vSetup,'#/due':vDue,'#/referrals':vReferrals}[h]||vHome)();
+}
+
+// ================= HOME (Needs Attention · Today · Stats · Quick Add) =================
+async function vHome(){
+  await ensureClients();
+  const t0=new Date();t0.setHours(0,0,0,0);const t1=new Date(+t0+864e5);
+  const monthStart=new Date();monthStart.setDate(1);monthStart.setHours(0,0,0,0);
+  const [jobs,mc,unpaid,leads,oq,fus,paidMo,appr,jobsFromQuotes]=await Promise.all([
+    q('jobs').gte('scheduled_at',t0.toISOString()).lt('scheduled_at',t1.toISOString()).order('scheduled_at'),
+    q('missed_calls').gte('created_at',new Date(Date.now()-7*864e5).toISOString()),
+    q('invoices').in('status',['sent','partial','viewed']),
+    q('leads').in('status',['new','contacted']).order('created_at',{ascending:false}).limit(5),
+    q('quotes').eq('status','sent'),
+    q('followup_steps').eq('status','pending').lte('due_at',new Date(Date.now()+7*864e5).toISOString()).order('due_at').limit(20),
+    q('invoices').eq('status','paid').gte('paid_at',monthStart.toISOString()),
+    q('quotes').in('status',['approved','accepted']),
+    q('jobs').not('quote_id','is',null)
+  ]);
+  const cm=byId(S.cache.clients);
+  const owed=(unpaid.data||[]).reduce((s,i)=>s+Number(i.total)-Number(i.amount_paid||0),0);
+  const openQ=(oq.data||[]).reduce((s,x)=>s+Number(x.total||0),0);
+  const moTotal=(paidMo.data||[]).reduce((s,x)=>s+Number(x.total||0),0);
+  const overdue=(unpaid.data||[]).filter(i=>i.due_at&&new Date(i.due_at)<new Date());
+  const dueSteps=(fus.data||[]).filter(f=>['d90_rebook','d180_seasonal','d365_annual'].includes(f.step_key));
+  const scheduledQuoteIds=new Set((jobsFromQuotes.data||[]).map(j=>j.quote_id));
+  const needsSched=(appr.data||[]).filter(x=>!scheduledQuoteIds.has(x.id));
+  const reviewsDue=(fus.data||[]).filter(f=>f.step_key==='d3_review');
+  const b=S.biz;
+  const checks=[['Business profile',!!(b.name&&b.phone)],['Twilio number',!!b.twilio_number],['A2P approved',b.a2p_status==='approved'],['Review link',!!b.review_link_google||!!b.review_link_facebook]];
+  $('#main').innerHTML=`
+  <div class="hdr"><h1>Today</h1><span style="font-size:12px;color:var(--money)">${money(moTotal)} this month · ${(paidMo.data||[]).length} paid jobs</span></div>
+  <div class="bigbtns">
+    <a class="btn" href="#/leads" onclick="setTimeout(addLead,150)">+ Add Lead</a>
+    <a class="btn" href="#/quote-new">+ Send Quote</a>
+    <a class="btn" href="#/jobs" onclick="setTimeout(addJob,150)">+ Schedule Job</a>
+    <a class="btn" href="#/texts">Text a Customer</a>
+  </div>
+  <div class="grid" style="margin-bottom:14px">
+    <div class="stat"><div class="n">${(jobs.data||[]).length}</div><div class="l">JOBS TODAY</div></div>
+    <div class="stat"><div class="n">${(mc.data||[]).length}</div><div class="l">CALLS CAUGHT · 7D</div></div>
+    <div class="stat"><div class="n">${money(openQ)}</div><div class="l">OPEN QUOTES</div></div>
+    <div class="stat"><div class="n">${money(owed)}</div><div class="l">UNPAID</div></div>
+  </div>
+  ${(overdue.length||reviewsDue.length||dueSteps.length||needsSched.length)?`<div class="card"><h2>⚠️ Needs attention</h2>
+    ${needsSched.map(x=>`<div class="row"><div><div class="t">${money(x.total)} quote APPROVED — ${esc(clientName(cm[x.client_id]))}</div><div class="s">Needs scheduling</div></div><button class="sm" onclick="quoteToJob('${x.id}')">Schedule job</button></div>`).join('')}
+    ${overdue.map(i=>`<div class="row"><div><div class="t">${money(Number(i.total)-Number(i.amount_paid||0))} overdue — ${esc(clientName(cm[i.client_id]))}</div><div class="s">Invoice · due ${fdate(i.due_at)}</div></div><button class="sm warn" onclick="sendThing('invoice','${i.id}')">Resend</button></div>`).join('')}
+    ${reviewsDue.map(f=>`<div class="row"><div><div class="t">Review request due — ${esc(clientName(cm[f.client_id]))}</div><div class="s">Sends automatically ${fdate(f.due_at)}</div></div><span class="pill p-green">AUTO</span></div>`).join('')}
+    ${dueSteps.map(f=>`<div class="row"><div><div class="t">${esc(clientName(cm[f.client_id]))} due back</div><div class="s">${esc(f.step_key.replace(/_/g,' '))} · ${fdate(f.due_at)}</div></div><span class="pill p-amber">DUE</span></div>`).join('')}
+  </div>`:''}
+  <div class="card"><h2>Today's jobs</h2>${(jobs.data||[]).map(j=>`<div class="row click" onclick="location.hash='#/job/${j.id}'"><div><div class="t">${esc(j.title||'Job')}</div><div class="s">${esc(clientName(cm[j.client_id]))} · ${fdt(j.scheduled_at)}</div></div><span class="pill p-green">${esc(j.status.toUpperCase())}</span></div>`).join('')||'<div class="empty">Nothing scheduled today.</div>'}</div>
+  <div class="card"><h2>New leads</h2>${(leads.data||[]).map(l=>`<div class="row click" onclick="location.hash='#/lead/${l.id}'"><div><div class="t">${esc(l.name||l.phone)}</div><div class="s">${esc(l.service_requested||'')} · ${ago(l.created_at)} ago</div></div><span class="pill ${l.source==='missed_call'?'p-money':'p-green'}">${esc((l.source||'').replace('_',' ').toUpperCase())}</span></div>`).join('')||'<div class="empty">No open leads.</div>'}</div>
+  ${checks.some(c=>!c[1])?`<div class="card"><h2>Setup checklist</h2>${checks.map(c=>`<div class="row"><div class="t">${c[1]?'✅':'⬜'} ${c[0]}</div></div>`).join('')}<div class="s" style="margin-top:8px">Finish in <a href="#/setup" style="color:var(--primary);font-weight:700">Setup</a>.</div></div>`:''}
+  ${b.a2p_status!=='approved'?'<div class="card" style="background:#fdecea"><b style="color:#b03a2e">Texting is OFF</b><div class="s" style="margin-top:4px">A2P registration not approved — all outbound SMS is blocked until it is.</div></div>':''}`;
+}
+
+// ================= LEADS (list · detail · status · convert) =================
+async function vLeads(){
+  const{data:leads}=await q('leads').is('archived_at',null).order('created_at',{ascending:false}).limit(100);
+  const{data:mcs}=await q('missed_calls').order('created_at',{ascending:false}).limit(30);
+  $('#main').innerHTML=`<div class="hdr"><h1>Leads</h1><button class="sm" onclick="addLead()">+ Add Lead</button></div>
+  <div class="card">${(leads||[]).map(l=>`<div class="row click" onclick="location.hash='#/lead/${l.id}'"><div><div class="t">${esc(l.name||l.phone)}</div><div class="s">${esc(l.phone||'')} · ${esc(l.service_requested||'—')} · ${ago(l.created_at)} ago</div></div><span class="pill ${{new:'p-green',contacted:'p-amber',quoted:'p-amber',booked:'p-money',lost:'p-gray'}[l.status]||'p-gray'}">${esc((l.status||'new').toUpperCase())}</span></div>`).join('')||'<div class="empty">No leads yet — share your quote form.</div>'}
+  <div class="s" style="margin-top:10px;word-break:break-all">Quote form: <b>${location.origin}/q/${S.biz.id}</b></div></div>
+  <div class="card"><h2>Missed calls</h2>${(mcs||[]).map(m=>`<div class="row"><div><div class="t">${esc(m.caller_number)}</div><div class="s">${ago(m.created_at)} ago</div></div><span class="pill ${m.text_back_sent?'p-money':'p-gray'}">${m.text_back_sent?'TEXTED BACK':'NO TEXT'}</span></div>`).join('')||'<div class="empty">None captured yet.</div>'}</div>`;
+}
+window.addLead=async()=>{
+  const name=prompt('Lead name?');if(!name)return;
+  const phone=prompt('Phone?')||null;const svc=prompt('Service requested?')||null;
+  const{data,error}=await sb.from('leads').insert({business_id:S.biz.id,name,phone,service_requested:svc,source:'manual',status:'new'}).select().single();
+  if(error)return toast(error.message);location.hash='#/lead/'+data.id;
+};
+const LEAD_STATUSES=['new','contacted','quoted','booked','lost'];
+async function vLead(id){
+  const{data:l}=await sb.from('leads').select('*').eq('id',id).single();
+  if(!l)return $('#main').innerHTML='<div class="empty">Not found</div>';
+  $('#main').innerHTML=`<div class="hdr"><h1>${esc(l.name||l.phone)}</h1><a class="back" href="#/leads">← leads</a></div>
+  <div class="card">
+    <div class="s">${esc(l.phone||'no phone')} · ${esc(l.service_requested||'')} · via ${esc(l.source)}</div>
+    ${l.message?`<div class="s" style="margin-top:6px">"${esc(l.message)}"</div>`:''}
+    ${l.address?`<div class="s" style="margin-top:6px">📍 ${esc(l.address)}</div>`:''}
+    <div class="actions">
+      ${l.phone?`<a class="btn" href="tel:${esc(l.phone)}">Call</a><a class="btn ghost" href="#/thread/${encodeURIComponent(l.phone)}">Text</a>`:''}
+      <button class="ghost" onclick="convertLead('${l.id}')">Convert to Quote</button>
+      <button class="warn" onclick="archiveLead('${l.id}')">Archive</button>
+    </div>
+    <label style="margin-top:14px">Status</label>
+    <div class="actions" style="margin-top:0">${LEAD_STATUSES.map(st=>`<button class="sm ${l.status===st?'':'ghost'}" onclick="leadStatus('${l.id}','${st}')">${st}</button>`).join('')}</div>
+    <label style="margin-top:14px">Notes</label>
+    <textarea id="ld_notes" rows="3">${esc(l.notes||'')}</textarea>
+    <button class="sm" onclick="leadNotes('${l.id}')">Save notes</button>
+  </div>`;
+}
+window.archiveLead=async id=>{
+  if(!confirm('Archive this lead? It disappears from the list but is not deleted.'))return;
+  const{error}=await sb.from('leads').update({archived_at:new Date().toISOString()}).eq('id',id);
+  if(error)return toast(error.message);toast('Archived');location.hash='#/leads';
+};
+window.leadStatus=async(id,st)=>{const upd={status:st};if(st==='lost'){const r=prompt('Lost reason? (optional)');if(r)upd.lost_reason=r}
+  const{error}=await sb.from('leads').update(upd).eq('id',id);if(error)return toast(error.message);toast('Status: '+st);vLead(id)};
+window.leadNotes=async id=>{const{error}=await sb.from('leads').update({notes:$('#ld_notes').value}).eq('id',id);toast(error?error.message:'Notes saved ✓')};
+window.convertLead=async id=>{
+  const{data:l}=await sb.from('leads').select('*').eq('id',id).single();
+  let cid=l.client_id;
+  if(!cid){ // create the client from the lead
+    const{data:c,error}=await sb.from('clients').insert({business_id:S.biz.id,first_name:(l.name||'Client').split(' ')[0],last_name:(l.name||'').split(' ').slice(1).join(' ')||null,phone:l.phone,email:l.email,sms_consent:l.source==='quote_form',sms_consent_source:l.source==='quote_form'?'quote_form':null,sms_consent_at:l.source==='quote_form'?new Date().toISOString():null,source:l.source}).select().single();
+    if(error)return toast(error.message);cid=c.id;
+    await sb.from('leads').update({client_id:cid}).eq('id',id);
+    if(l.address)await sb.from('properties').insert({business_id:S.biz.id,client_id:cid,address:l.address});
+    await ensureClients(true);
+  }
+  location.hash='#/quote-new?client='+cid+'&lead='+id;
+};
+
+// ================= QUOTES (list · BUILDER: service/sqft/rate/add-ons/preview) =================
+async function vQuotes(){
+  await ensureClients();const cm=byId(S.cache.clients);
+  const{data:qs}=await q('quotes').order('created_at',{ascending:false}).limit(60);
+  $('#main').innerHTML=`<div class="hdr"><h1>Quotes</h1><a class="btn sm" href="#/quote-new">+ New Quote</a></div>
+  <div class="card">${(qs||[]).map(x=>`<div class="row"><div><div class="t">${money(x.total)} — ${esc(clientName(cm[x.client_id]))}</div><div class="s">${esc(x.title||'')} · ${esc(x.status)}${x.viewed_at?' \u00b7 \ud83d\udc40 viewed':''}${x.last_send_error?' \u00b7 \u26a0 not sent: '+esc(x.last_send_error):''} · ${fdate(x.created_at)}</div></div>
+    ${x.status==='draft'?`<button class="sm" onclick="sendThing('quote','${x.id}')">Send</button>`:['approved','accepted'].includes(x.status)?`<button class="sm" onclick="quoteToJob('${x.id}')">→ Job</button>`:`<a class="pill p-green" href="/p/quote/${x.public_token}" target="_blank">VIEW</a>`}</div>`).join('')||'<div class="empty">No quotes yet.</div>'}</div>`;
+}
+function catalog(){const c=S.biz.service_catalog;return(Array.isArray(c)&&c.length)?c:[{name:'Paver sealing',rate:1.5,unit:'sqft'},{name:'Travertine sealing',rate:1.6,unit:'sqft'},{name:'Pool deck restoration',rate:0,unit:'flat'},{name:'Pressure washing',rate:0.25,unit:'sqft'}]}
+let QB={items:[]};
+async function vQuoteBuilder(params){
+  await ensureClients();QB={items:[],client:params.get('client')||'',lead:params.get('lead')||''};
+  const cs=S.cache.clients;
+  $('#main').innerHTML=`<div class="hdr"><h1>Quote builder</h1><a class="back" href="#/quotes">← quotes</a></div>
+  <div class="card">
+    <label>Client</label><select id="qb_client">${cs.map(c=>`<option value="${c.id}" ${c.id===QB.client?'selected':''}>${esc(clientName(c))}</option>`).join('')||'<option value="">— add a client first —</option>'}</select>
+    <label>Quote title</label><input id="qb_title" placeholder="Driveway + pool deck sealing">
+    <h2 style="margin-top:6px">Line items</h2>
+    <div id="qb_items"></div>
+    <label>Service</label><select id="qb_svc">${catalog().map((s,i)=>`<option value="${i}">${esc(s.name)} ${s.unit==='sqft'?'· $'+s.rate+'/sq ft':''}</option>`).join('')}<option value="custom">Custom item…</option></select>
+    <div id="qb_sqwrap"><label>Square footage</label><input id="qb_sqft" type="number" inputmode="numeric" placeholder="1200">
+    <button class="sm ghost" style="margin-bottom:10px" onclick="location.hash='#/measure?client='+$('#qb_client').value+'&return=quote'">📐 Measure from satellite</button></div>
+    <div id="qb_flatwrap" style="display:none"><label>Price</label><input id="qb_flat" type="number" inputmode="decimal" placeholder="600"></div>
+    <button class="sm ghost" onclick="qbAdd()">+ Add line item</button>
+    <label style="margin-top:14px">Notes for the customer</label><textarea id="qb_notes" rows="2" placeholder="Includes 2-year warranty. HOA approved."></textarea>
+    <div class="row" style="border:0;margin-top:6px"><div class="t">Total</div><div class="t" id="qb_total" style="color:var(--primary)">$0.00</div></div>
+    <div class="actions"><button onclick="qbSave(false)">Save draft</button><button class="ghost" onclick="qbSave(true)">Save & text quote</button></div>
+  </div>`;
+  $('#qb_svc').onchange=()=>{const v=$('#qb_svc').value;const flat=v==='custom'||catalog()[v]?.unit==='flat';$('#qb_sqwrap').style.display=flat?'none':'block';$('#qb_flatwrap').style.display=flat?'block':'none'};
+  $('#qb_svc').onchange();qbRender();
+  const mf=sessionStorage.getItem('measured_sqft');
+  if(mf){$('#qb_sqft').value=mf;sessionStorage.removeItem('measured_sqft');toast('Measurement applied: '+Number(mf).toLocaleString()+' sq ft')}
+}
+window.qbAdd=()=>{
+  const v=$('#qb_svc').value;let item;
+  if(v==='custom'){const name=prompt('Item description?');if(!name)return;const amt=Number($('#qb_flat').value)||Number(prompt('Price?'))||0;item={description:name,qty:1,amount:amt}}
+  else{const svc=catalog()[v];
+    if(svc.unit==='sqft'){const sq=Number($('#qb_sqft').value);if(!sq)return toast('Enter square footage');item={description:`${svc.name} — ${sq.toLocaleString()} sq ft @ $${svc.rate}/sq ft`,qty:1,amount:Math.round(sq*svc.rate*100)/100}}
+    else{const amt=Number($('#qb_flat').value);if(!amt)return toast('Enter a price');item={description:svc.name,qty:1,amount:amt}}}
+  QB.items.push(item);qbRender();
+};
+function qbRender(){
+  $('#qb_items').innerHTML=QB.items.map((it,i)=>`<div class="row"><div><div class="t">${esc(it.description)}</div></div><div style="display:flex;gap:8px;align-items:center"><b>${money(it.amount)}</b><button class="sm warn" onclick="QB.items.splice(${i},1);qbRender()">✕</button></div></div>`).join('')||'<div class="empty" style="padding:10px">No items yet</div>';
+  $('#qb_total').textContent=money(QB.items.reduce((s,i)=>s+i.amount,0));
+}
+window.qbSave=async send=>{
+  const cid=$('#qb_client').value;if(!cid)return toast('Pick a client');
+  if(!QB.items.length)return toast('Add at least one line item');
+  const total=QB.items.reduce((s,i)=>s+i.amount,0);
+  const{data,error}=await sb.from('quotes').insert({business_id:S.biz.id,client_id:cid,lead_id:QB.lead||null,title:$('#qb_title').value.trim()||QB.items[0].description,line_items:QB.items,subtotal:total,total,notes:$('#qb_notes').value.trim()||null,status:'draft'}).select().single();
+  if(error)return toast(error.message);
+  await sb.from('leads').update({status:'quoted'}).eq('business_id',S.biz.id).eq('client_id',cid).in('status',['new','contacted']);
+  if(send){try{const r=await api('/api/quotes/'+data.id+'/send',{method:'POST'});toast('Quote texted ✓')}catch(e){toast('Saved — send failed: '+e.message)}}
+  else toast('Draft saved ✓');
+  location.hash='#/quotes';
+};
+window.quoteToJob=async qid=>{
+  const{data:qt}=await sb.from('quotes').select('*').eq('id',qid).single();
+  const when=prompt('Schedule for? (YYYY-MM-DD HH:MM)',new Date(Date.now()+2*864e5).toISOString().slice(0,16).replace('T',' '));if(when===null)return;
+  const dt=new Date(when.replace(' ','T'));if(isNaN(dt))return toast('Bad date');
+  const{error}=await sb.from('jobs').insert({business_id:S.biz.id,client_id:qt.client_id,quote_id:qid,title:qt.title,total:qt.total,status:'scheduled',scheduled_at:dt.toISOString()});
+  if(error)return toast(error.message);
+  await sb.from('leads').update({status:'booked'}).eq('id',qt.lead_id||'00000000-0000-0000-0000-000000000000');
+  toast('Job scheduled ✓');location.hash='#/jobs';
+};
+
+// ================= JOBS (Today/Week/All · ACTIVE JOB FLOW · photos · proof card) =================
+let jobTab='today';
+async function vJobs(tab){
+  if(tab)jobTab=tab;await ensureClients();const cm=byId(S.cache.clients);
+  const t0=new Date();t0.setHours(0,0,0,0);
+  let qq=q('jobs').order('scheduled_at',{ascending:jobTab!=='all'});
+  if(jobTab==='today')qq=qq.gte('scheduled_at',t0.toISOString()).lt('scheduled_at',new Date(+t0+864e5).toISOString());
+  if(jobTab==='week')qq=qq.gte('scheduled_at',t0.toISOString()).lt('scheduled_at',new Date(+t0+7*864e5).toISOString());
+  const{data:jobs}=await qq.limit(80);
+  let bq=q('time_blocks').order('starts_at');
+  if(jobTab==='today')bq=bq.gte('starts_at',t0.toISOString()).lt('starts_at',new Date(+t0+864e5).toISOString());
+  if(jobTab==='week')bq=bq.gte('starts_at',t0.toISOString()).lt('starts_at',new Date(+t0+7*864e5).toISOString());
+  if(jobTab==='all')bq=bq.gte('ends_at',new Date().toISOString());
+  const{data:blocks}=await bq.limit(40);
+  $('#main').innerHTML=`<div class="hdr"><h1>Jobs</h1><div><button class="sm" onclick="addJob()">+ Job</button> <button class="sm ghost" onclick="blockTime()">\ud83d\udeab Block time</button></div></div>
+  <div class="tabs"><button class="${jobTab==='today'?'on':''}" onclick="vJobs('today')">Today</button><button class="${jobTab==='week'?'on':''}" onclick="vJobs('week')">Week</button><button class="${jobTab==='all'?'on':''}" onclick="vJobs('all')">All</button></div>
+  <div class="card">${(jobs||[]).map(j=>`<div class="row click" onclick="location.hash='#/job/${j.id}'"><div><div class="t">${esc(j.title||'Job')}</div><div class="s">${esc(clientName(cm[j.client_id]))} · ${fdt(j.scheduled_at)}${j.total?' · '+money(j.total):''}</div></div><span class="pill ${{scheduled:'p-green',en_route:'p-amber',arrived:'p-amber',in_progress:'p-amber',done:'p-money',invoiced:'p-money',paid:'p-money'}[j.status]||'p-gray'}">${esc(j.status.replace('_',' ').toUpperCase())}</span></div>`).join('')||''}
+  ${(blocks||[]).map(b=>`<div class="row"><div><div class="t">\ud83d\udeab ${esc(b.title)}</div><div class="s">${fdt(b.starts_at)} \u2192 ${fdt(b.ends_at)}${b.reason?' \u00b7 '+esc(b.reason):''}</div></div><button class="sm warn" onclick="delBlock('${b.id}')">\u2715</button></div>`).join('')}
+  ${!(jobs||[]).length&&!(blocks||[]).length?'<div class="empty">Nothing here.</div>':''}</div>`;
+}
+window.blockTime=async()=>{
+  const title=prompt('Block title?','Rain day');if(!title)return;
+  const reason=prompt('Reason? (optional)','')||null;
+  const start=prompt('Start? (YYYY-MM-DD HH:MM)',new Date(Date.now()+864e5).toISOString().slice(0,16).replace('T',' '));if(start===null)return;
+  const s=new Date(start.replace(' ','T'));if(isNaN(s))return toast('Bad date');
+  const hrs=Number(prompt('How many hours?','8'))||8;
+  const{error}=await sb.from('time_blocks').insert({business_id:S.biz.id,title,reason,starts_at:s.toISOString(),ends_at:new Date(+s+hrs*36e5).toISOString()});
+  if(error)return toast(error.message);toast('Time blocked \u2713');vJobs();
+};
+window.delBlock=async id=>{const{error}=await sb.from('time_blocks').delete().eq('id',id);if(error)return toast(error.message);toast('Unblocked');vJobs()};
+window.addJob=async()=>{
+  await ensureClients();const cs=S.cache.clients;if(!cs.length)return toast('Add a client first');
+  const names=cs.map((c,i)=>`${i+1}. ${clientName(c)}`).join('\n');
+  const pick=prompt('Which client?\n'+names,'1');if(pick===null)return;
+  const c=cs[(Number(pick)||1)-1];if(!c)return toast('Invalid pick');
+  const title=prompt('Job title?','Paver sealing');if(title===null)return;
+  const when=prompt('When? (YYYY-MM-DD HH:MM)',new Date(Date.now()+864e5).toISOString().slice(0,16).replace('T',' '));if(when===null)return;
+  const dt=new Date(when.replace(' ','T'));if(isNaN(dt))return toast('Bad date');
+  const{data,error}=await sb.from('jobs').insert({business_id:S.biz.id,client_id:c.id,title,status:'scheduled',scheduled_at:dt.toISOString()}).select().single();
+  if(error)return toast(error.message);location.hash='#/job/'+data.id;
+};
+function navBtns(addr){
+  const g=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}`;
+  const ap=`https://maps.apple.com/?daddr=${encodeURIComponent(addr)}`;
+  const pref=setting('nav_pref','ask');
+  if(pref==='google')return `<a class="btn ghost" target="_blank" href="${g}">Navigate</a>`;
+  if(pref==='apple')return `<a class="btn ghost" target="_blank" href="${ap}">Navigate</a>`;
+  return `<a class="btn ghost" target="_blank" href="${g}">Google Maps</a><a class="btn ghost" target="_blank" href="${ap}">Apple Maps</a>`;
+}
+async function vJob(id){
+  await ensureClients();
+  const{data:j}=await sb.from('jobs').select('*, properties(address)').eq('id',id).single();
+  if(!j)return $('#main').innerHTML='<div class="empty">Not found</div>';
+  const c=byId(S.cache.clients)[j.client_id];
+  const addr=j.properties?.address||'';
+  const photos=Array.isArray(j.photos)?j.photos:[];
+  const before=photos.filter(p=>p.kind==='before'),after=photos.filter(p=>p.kind==='after');
+  const st=j.status;
+  $('#main').innerHTML=`<div class="hdr"><h1>${esc(j.title||'Job')}</h1><a class="back" href="#/jobs">← jobs</a></div>
+  <div class="card">
+    <div class="t">${esc(clientName(c))} · ${money(j.total)}</div>
+    <div class="s">${fdt(j.scheduled_at)}${addr?' · 📍 '+esc(addr):''}</div>
+    <div style="margin-top:8px"><span class="pill p-green">${esc(st.replace('_',' ').toUpperCase())}</span></div>
+    <div class="actions">
+      ${c&&c.phone?`<a class="btn ghost" href="tel:${esc(c.phone)}">Call</a><a class="btn ghost" href="#/thread/${encodeURIComponent(c.phone)}">Text</a>`:''}
+      ${addr?navBtns(addr):''}
+    </div>
+    <div class="actions">
+      ${st==='scheduled'?`<button onclick="jobOnTheWay('${j.id}')">🚚 On the way (texts customer)</button>`:''}
+      ${st==='en_route'?`<button onclick="jobStatus('${j.id}','arrived',{arrived_at:new Date().toISOString()})">📍 Mark arrived</button>`:''}
+      ${st==='arrived'?`<button onclick="jobStatus('${j.id}','in_progress',{started_at:new Date().toISOString()})">▶ Start job</button>`:''}
+      ${st==='in_progress'?`<button onclick="jobStatus('${j.id}','done',{completed_at:new Date().toISOString()})">✅ Mark complete</button>`:''}
+      ${['scheduled','en_route','arrived'].includes(st)?`<button class="ghost" onclick="jobStatus('${j.id}','needs_reschedule')">↻ Reschedule</button><button class="warn" onclick="if(confirm('Cancel this job?'))jobStatus('${j.id}','cancelled')">Cancel job</button>`:''}
+      ${st==='needs_reschedule'?`<button onclick="rescheduleJob('${j.id}')">Pick new time</button>`:''}
+    </div>
+  </div>
+  <div class="card"><h2>Photos</h2>
+    <div class="actions" style="margin-top:0">
+      <label class="btn ghost" style="flex:1;min-width:130px">📷 Before<input type="file" accept="image/*" multiple hidden onchange="upPhotos('${j.id}','before',this.files)"></label>
+      <label class="btn ghost" style="flex:1;min-width:130px">📷 After<input type="file" accept="image/*" multiple hidden onchange="upPhotos('${j.id}','after',this.files)"></label>
+    </div>
+    <div class="photo-grid">${photos.map((p,i)=>`<div class="ph" onclick="delPhoto('${j.id}',${i})"><img src="${esc(p.url)}"><b>${p.kind.toUpperCase()} ✕</b></div>`).join('')||''}</div>
+    ${photos.length?'<div class="s">Tap a photo to remove it.</div>':''}
+    ${before.length&&after.length?`<button class="wide" onclick="proofCard('${j.id}')">✨ Make Before/After Proof Card</button>`:'<div class="s">Add at least one Before and one After photo to build the proof card.</div>'}
+  </div>
+  ${['done','invoiced','paid'].includes(st)?`<div class="card dark"><h2 style="color:#fff">${st==='paid'?'💰 You got paid!':'Job complete — get paid'}</h2>
+    <div class="actions">
+      ${st==='done'?`<button onclick="jobInvoice('${j.id}')">Create & text invoice ${j.total?'('+money(j.total)+')':''}</button>`:''}
+      ${st==='paid'?`<button class="ghost" onclick="openReview('${j.client_id}',()=>vJob('${j.id}'))">\u2b50 Ask for review</button><div class="s" style="color:var(--money)">Year-round follow-up is set: Day 3 review · 30 check-in · 60 referral · 90 rebook · 180 seasonal · 365 annual. We'll handle it.</div>`:''}
+    </div></div>`:''}`;
+}
+window.rescheduleJob=async id=>{
+  const when=prompt('New time? (YYYY-MM-DD HH:MM)');if(when===null)return;
+  const dt=new Date(when.replace(' ','T'));if(isNaN(dt))return toast('Bad date');
+  const{error}=await sb.from('jobs').update({status:'scheduled',scheduled_at:dt.toISOString()}).eq('id',id);
+  if(error)return toast(error.message);toast('Rescheduled ✓');vJob(id);
+};
+window.delPhoto=async(jobId,idx)=>{
+  if(!confirm('Remove this photo?'))return;
+  const{data:j}=await sb.from('jobs').select('photos').eq('id',jobId).single();
+  const photos=Array.isArray(j.photos)?j.photos:[];photos.splice(idx,1);
+  const{error}=await sb.from('jobs').update({photos}).eq('id',jobId);
+  if(error)return toast(error.message);toast('Photo removed');vJob(jobId);
+};
+window.jobStatus=async(id,status,extra={})=>{const{error}=await sb.from('jobs').update({status,...extra}).eq('id',id);if(error)return toast(error.message);toast(status.replace('_',' ')+' ✓');vJob(id)};
+window.jobOnTheWay=async id=>{
+  const eta=prompt('ETA in minutes?','25');if(eta===null)return;
+  const miles=prompt('Miles for Tax Drop? (blank to skip)','');
+  try{const r=await api('/api/jobs/'+id+'/on-the-way',{method:'POST',body:JSON.stringify({eta_minutes:Number(eta)||null,miles:miles?Number(miles):null})});
+    toast(r.text_sent?'On-the-way text sent ✓':'Logged — text blocked ('+(r.reason||'consent/A2P')+')')}catch(e){toast('Error: '+e.message)}
+  vJob(id); // server endpoint owns status/en_route_at/on_the_way_sent
+};
+async function compressImg(file,maxW=1600,q=0.8){
+  const url=URL.createObjectURL(file);
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
+  URL.revokeObjectURL(url);
+  const scale=Math.min(1,maxW/img.width);
+  const cv=document.createElement('canvas');cv.width=Math.round(img.width*scale);cv.height=Math.round(img.height*scale);
+  cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+  return new Promise(res=>cv.toBlob(res,'image/jpeg',q));
+}
+window.upPhotos=async(jobId,kind,files)=>{
+  if(!files.length)return;toast('Uploading…');
+  const{data:j}=await sb.from('jobs').select('photos').eq('id',jobId).single();
+  const photos=Array.isArray(j.photos)?j.photos:[];
+  for(const f of files){
+    const blob=await compressImg(f).catch(()=>f); // fall back to original if decode fails
+    const path=`${S.biz.id}/${jobId}/${kind}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+    const{error}=await sb.storage.from('job-photos').upload(path,blob,{contentType:'image/jpeg'});
+    if(error){toast('Upload failed: '+error.message);return}
+    const{data:pub}=sb.storage.from('job-photos').getPublicUrl(path);
+    photos.push({kind,url:pub.publicUrl});
+  }
+  const{error}=await sb.from('jobs').update({photos}).eq('id',jobId);
+  if(error)return toast(error.message);toast('Photos saved ✓');vJob(jobId);
+};
+window.proofCard=async jobId=>{
+  const{data:j}=await sb.from('jobs').select('*').eq('id',jobId).single();
+  const c=byId(await ensureClients())[j.client_id];
+  const photos=j.photos||[];
+  const b=photos.filter(p=>p.kind==='before').pop(),a=photos.filter(p=>p.kind==='after').pop();
+  if(!b||!a)return toast('Need a before and an after photo');
+  toast('Building proof card…');
+  const load=u=>new Promise((res,rej)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=rej;i.src=u});
+  try{
+    const[bi,ai]=await Promise.all([load(b.url),load(a.url)]);
+    const cv=$('#cardCanvas'),x=cv.getContext('2d');const W=1200,H=630,ph=520;
+    x.fillStyle='#fff';x.fillRect(0,0,W,H);
+    const draw=(img,dx)=>{const s=Math.max(600/img.width,ph/img.height);const w=img.width*s,h=img.height*s;
+      x.save();x.beginPath();x.rect(dx,0,600,ph);x.clip();x.drawImage(img,dx+(600-w)/2,(ph-h)/2,w,h);x.restore()};
+    draw(bi,0);draw(ai,600);
+    x.fillStyle='rgba(0,0,0,.7)';x.fillRect(20,ph-52,150,36);x.fillRect(620,ph-52,130,36);
+    x.fillStyle='#fff';x.font='bold 22px sans-serif';x.fillText('BEFORE',38,ph-27);x.fillText('AFTER',640,ph-27);
+    x.fillStyle='#1a2e1a';x.fillRect(0,ph,W,H-ph);
+    x.fillStyle='#fff';x.font='bold 34px sans-serif';x.fillText(S.biz.name,30,ph+46);
+    x.fillStyle='#7bc67b';x.font='600 22px sans-serif';
+    x.fillText(`${clientName(c)} · ${j.title||''}`.slice(0,60),30,ph+82);
+    cv.toBlob(async blob=>{
+      const path=`${S.biz.id}/${jobId}/proof-${Date.now()}.png`;
+      await sb.storage.from('job-photos').upload(path,blob,{contentType:'image/png'});
+      const{data:pub}=sb.storage.from('job-photos').getPublicUrl(path);
+      const url=URL.createObjectURL(blob);const aEl=document.createElement('a');aEl.href=url;aEl.download='proof-card.png';aEl.click();
+      // Text it to the customer if they consented
+      if(c&&c.phone&&confirm('Proof card downloaded. Text it to '+c.first_name+' too?')){
+        try{await api('/api/messages/send',{method:'POST',body:JSON.stringify({to:c.phone,client_id:c.id,body:`Here's your before & after from ${S.biz.name}! ${pub.publicUrl}`})});toast('Proof card texted ✓')}catch(e){toast('Download OK — text failed: '+e.message)}
+      }
+    },'image/png');
+  }catch(e){toast('Could not build card: '+e.message)}
+};
+window.jobInvoice=async jobId=>{
+  const{data:j}=await sb.from('jobs').select('*').eq('id',jobId).single();
+  const amt=Number(prompt('Invoice amount?',j.total||''));if(!amt)return;
+  const{data:inv,error}=await sb.from('invoices').insert({business_id:S.biz.id,client_id:j.client_id,job_id:jobId,title:j.title,total:amt,line_items:[{description:j.title||'Service',qty:1,amount:amt}],status:'draft'}).select().single();
+  if(error)return toast(error.message);
+  await sb.from('jobs').update({status:'invoiced'}).eq('id',jobId);
+  try{await api('/api/invoices/'+inv.id+'/send',{method:'POST'});toast('Invoice texted ✓')}catch(e){toast('Invoice saved — send failed: '+e.message)}
+  vJob(jobId);
+};
+
+
+// ================= MEASURE TOOL (satellite trace \u2192 sq ft \u2192 quote builder) =================
+let MZ={map:null,pts:[],poly:null,marks:[],prop:null};
+async function loadLeaflet(){
+  if(window.L)return;
+  await new Promise(res=>{const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css';document.head.appendChild(l);
+    const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js';s.onload=res;document.head.appendChild(s)});
+}
+window.openMeasure=async()=>{
+  const cid=$('#qb_client')?$('#qb_client').value:null;
+  if(!cid)return toast('Pick a client first');
+  const{data:props}=await sb.from('properties').select('*').eq('client_id',cid);
+  let prop=(props||[])[0];
+  if((props||[]).length>1){const pick=prompt('Which property?\n'+props.map((p,i)=>(i+1)+'. '+p.address).join('\n'),'1');if(pick===null)return;prop=props[(Number(pick)||1)-1]}
+  if(!prop){const addr=prompt('No property on file. Address to measure?');if(!addr)return;
+    const{data,error}=await sb.from('properties').insert({business_id:S.biz.id,client_id:cid,address:addr}).select().single();
+    if(error)return toast(error.message);prop=data}
+  MZ.prop=prop;
+  // Reuse a saved measurement?
+  const saved=Array.isArray(prop.saved_measurements)?prop.saved_measurements:[];
+  if(saved.length){
+    const pick=prompt('Saved measurements:\n'+saved.map((m,i)=>(i+1)+'. '+m.label+' \u2014 '+Math.round(m.area_sqft).toLocaleString()+' sq ft').join('\n')+'\n\nEnter number to use, or 0 to measure new:','0');
+    if(pick===null)return;
+    const m=saved[(Number(pick)||0)-1];
+    if(m){$('#qb_sqft').value=Math.round(m.area_sqft);return toast('Using '+m.label+' \u2713')}
+  }
+  toast('Loading satellite view\u2026');await loadLeaflet();
+  // Geocode: stored lat/lng first, else Nominatim
+  let lat=prop.lat,lng=prop.lng;
+  if(!lat||!lng){
+    try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(prop.address));
+      const j=await r.json();if(j[0]){lat=+j[0].lat;lng=+j[0].lon;
+        await sb.from('properties').update({lat,lng}).eq('id',prop.id)}}catch(e){}
+  }
+  if(!lat||!lng){lat=30.1975;lng=-81.3925;toast('Address not found \u2014 pan to the property')} // Nocatee-ish default
+  const ov=document.createElement('div');ov.id='mz_ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column';
+  ov.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;color:#fff">
+    <b>\ud83d\udccf Tap corners of the area</b><button class="sm warn" onclick="closeMeasure()">\u2715 Close</button></div>
+    <div id="mz_map" style="flex:1"></div>
+    <div style="padding:12px 16px;background:var(--dark);display:flex;gap:8px;align-items:center">
+      <div style="color:#fff;flex:1"><b id="mz_area" style="color:var(--money);font-size:20px">0</b> <span style="font-size:12px">sq ft</span></div>
+      <button class="sm ghost" onclick="mzUndo()">Undo</button><button class="sm ghost" onclick="mzClear()">Clear</button>
+      <button class="sm" onclick="mzSave()">Save & use \u2192</button></div>`;
+  document.body.appendChild(ov);
+  MZ.pts=[];MZ.marks=[];MZ.poly=null;
+  MZ.map=L.map('mz_map',{zoomControl:true}).setView([lat,lng],20);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri'}).addTo(MZ.map);
+  MZ.map.on('click',e=>{MZ.pts.push(e.latlng);
+    MZ.marks.push(L.circleMarker(e.latlng,{radius:5,color:'#7bc67b',fillColor:'#7bc67b',fillOpacity:1}).addTo(MZ.map));
+    mzRedraw()});
+};
+function mzArea(pts){ // planar shoelace on local-meter projection \u2014 fine at parcel scale
+  if(pts.length<3)return 0;
+  const R=6378137,lat0=pts[0].lat*Math.PI/180;
+  const xy=pts.map(p=>[R*p.lng*Math.PI/180*Math.cos(lat0),R*p.lat*Math.PI/180]);
+  let s=0;for(let i=0;i<xy.length;i++){const[x1,y1]=xy[i],[x2,y2]=xy[(i+1)%xy.length];s+=x1*y2-x2*y1}
+  return Math.abs(s/2)*10.7639; // m\u00b2 \u2192 sq ft
+}
+function mzRedraw(){
+  if(MZ.poly)MZ.map.removeLayer(MZ.poly);
+  if(MZ.pts.length>=2)MZ.poly=L.polygon(MZ.pts,{color:'#7bc67b',weight:2,fillOpacity:.25}).addTo(MZ.map);
+  $('#mz_area').textContent=Math.round(mzArea(MZ.pts)).toLocaleString();
+}
+window.mzUndo=()=>{MZ.pts.pop();const m=MZ.marks.pop();if(m)MZ.map.removeLayer(m);mzRedraw()};
+window.mzClear=()=>{MZ.pts=[];MZ.marks.forEach(m=>MZ.map.removeLayer(m));MZ.marks=[];mzRedraw()};
+window.closeMeasure=()=>{if(MZ.map){MZ.map.remove();MZ.map=null}const o=$('#mz_ov');if(o)o.remove()};
+window.mzSave=async()=>{
+  const area=mzArea(MZ.pts);
+  if(area<10)return toast('Trace at least 3 corners first');
+  const label=prompt('Label this area:','Driveway')||'Area';
+  const saved=Array.isArray(MZ.prop.saved_measurements)?MZ.prop.saved_measurements:[];
+  saved.push({label,area_sqft:Math.round(area),type:'polygon',measured_at:new Date().toISOString(),points:MZ.pts.map(p=>[+p.lat.toFixed(7),+p.lng.toFixed(7)])});
+  const{error}=await sb.from('properties').update({saved_measurements:saved}).eq('id',MZ.prop.id);
+  if(error)return toast(error.message);
+  const el=$('#qb_sqft');if(el)el.value=Math.round(area);
+  closeMeasure();toast(label+': '+Math.round(area).toLocaleString()+' sq ft \u2713 saved & filled');
+};
+
+// ================= CLIENTS =================
+async function vClients(){
+  const cs=await ensureClients(true);
+  $('#main').innerHTML=`<div class="hdr"><h1>Clients (${cs.length})</h1><button class="sm" onclick="addClient()">+ Add</button></div>
+  <div class="card"><input placeholder="Search name or phone…" oninput="filterClients(this.value)"><div id="clist">${clientRows(cs)}</div></div>`;
+}
+function clientRows(cs){return cs.map(c=>`<div class="row click" onclick="location.hash='#/client/${c.id}'"><div><div class="t">${esc(clientName(c))}${c.is_vip?' ⭐':''}</div><div class="s">${esc(c.phone||'no phone')} · ${money(c.lifetime_value)} lifetime · ${c.job_count||0} jobs</div></div><span class="pill ${c.sms_opted_out?'p-red':c.sms_consent?'p-money':'p-gray'}">${c.sms_opted_out?'OPTED OUT':c.sms_consent?'SMS OK':'NO CONSENT'}</span></div>`).join('')||'<div class="empty">No clients yet.</div>'}
+window.filterClients=v=>{v=v.toLowerCase();$('#clist').innerHTML=clientRows(S.cache.clients.filter(c=>(clientName(c)+' '+(c.phone||'')).toLowerCase().includes(v)))};
+window.addClient=async()=>{
+  const first=prompt('First name?');if(!first)return;const phone=prompt('Mobile number?');
+  const{data,error}=await sb.from('clients').insert({business_id:S.biz.id,first_name:first,phone:phone||null,sms_consent:!!phone,sms_consent_source:phone?'verbal_onboard':null,sms_consent_at:phone?new Date().toISOString():null,source:'manual'}).select().single();
+  if(error)return toast(error.message);await ensureClients(true);toast('Client added ✓');location.hash='#/client/'+data.id;
+};
+async function vClient(id){
+  const[{data:c},{data:jobs},{data:qs},{data:invs},{data:props},{data:fus},{data:msgs},{data:pays},{data:rrs}]=await Promise.all([
+    sb.from('clients').select('*').eq('id',id).single(),
+    sb.from('jobs').select('*').eq('client_id',id).order('scheduled_at',{ascending:false}).limit(20),
+    sb.from('quotes').select('*').eq('client_id',id).order('created_at',{ascending:false}).limit(10),
+    sb.from('invoices').select('*').eq('client_id',id).order('created_at',{ascending:false}).limit(10),
+    sb.from('properties').select('*').eq('client_id',id),
+    sb.from('followup_steps').select('*').eq('client_id',id).eq('status','pending').order('due_at').limit(8),
+    sb.from('messages').select('*').eq('client_id',id).order('created_at',{ascending:false}).limit(30),
+    sb.from('payments').select('*').eq('business_id',S.biz.id).order('created_at',{ascending:false}).limit(50),
+    sb.from('review_requests').select('*').eq('client_id',id).order('created_at',{ascending:false}).limit(5)]);
+  if(!c)return $('#main').innerHTML='<div class="empty">Not found</div>';
+  const photos=(jobs||[]).flatMap(j=>Array.isArray(j.photos)?j.photos:[]).slice(0,8);
+  $('#main').innerHTML=`<div class="hdr"><h1>${esc(clientName(c))}${c.is_vip?' ⭐':''}</h1><a class="back" href="#/clients">← clients</a></div>
+  <div class="card">
+    <div class="grid" style="margin-bottom:10px">
+      <div class="stat"><div class="n">${money(c.lifetime_value)}</div><div class="l">TOTAL SPEND</div></div>
+      <div class="stat"><div class="n">${c.job_count||0}</div><div class="l">JOBS DONE</div></div>
+    </div>
+    <div class="s">${esc(c.phone||'')} ${esc(c.email||'')}</div>
+    ${(props||[]).map(p=>`<div class="s">📍 ${esc(p.address)}</div>`).join('')}
+    <div style="margin-top:6px"><span class="pill ${c.sms_opted_out?'p-red':c.sms_consent?'p-money':'p-gray'}">${c.sms_opted_out?'OPTED OUT':c.sms_consent?'SMS CONSENT ON FILE':'NO SMS CONSENT'}</span></div>
+    ${c.notes?`<div class="s" style="margin-top:6px">${esc(c.notes)}</div>`:''}
+    <div class="s" style="margin-top:6px">${c.referred_by?'\ud83e\udd1d Referred by '+esc(clientName(byId(S.cache.clients)[c.referred_by])):`<a href="javascript:setReferredBy('${c.id}')" style="color:var(--primary);font-weight:700">+ set referred-by</a>`}</div>
+    <div class="actions">
+      ${c.phone?`<a class="btn ghost" href="tel:${esc(c.phone)}">Call</a><a class="btn ghost" href="#/thread/${encodeURIComponent(c.phone)}">Text</a>`:''}
+      <a class="btn" href="#/quote-new?client=${c.id}">New quote</a>
+      <a class="btn ghost" href="#/measure?client=${c.id}">📐 Measure</a>
+    </div>
+  </div>
+  ${photos.length?`<div class="card"><h2>Photos</h2><div class="photo-grid">${photos.map(p=>`<div class="ph"><img src="${esc(p.url)}"><b>${p.kind.toUpperCase()}</b></div>`).join('')}</div></div>`:''}
+  ${(fus||[]).length?`<div class="card"><h2>Upcoming follow-ups (automatic)</h2>${fus.map(f=>`<div class="row"><div class="t">${esc(f.step_key.replace(/_/g,' '))}</div><span class="pill p-green">${fdate(f.due_at)}</span></div>`).join('')}</div>`:''}
+  <div class="card"><h2>Jobs</h2>${(jobs||[]).map(j=>`<div class="row click" onclick="location.hash='#/job/${j.id}'"><div><div class="t">${esc(j.title||'Job')}</div><div class="s">${fdt(j.scheduled_at)} · ${esc(j.status)}</div></div></div>`).join('')||'<div class="empty">None</div>'}</div>
+  ${(rrs||[]).length?`<div class="card"><h2>Review requests</h2>${rrs.map(r=>`<div class="row"><div><div class="t">${{pending:'\u23f3 Pending',sent:'\u2709\ufe0f Sent',clicked:'\ud83d\udc46 CLICKED',reviewed:'\u2b50 REVIEWED'}[r.status]||esc(r.status)}</div><div class="s">${fdt(r.sent_at||r.created_at)}${r.clicked_at?' \u00b7 clicked '+ago(r.clicked_at)+' ago':''}</div></div>${r.status!=='reviewed'?`<button class="sm ghost" onclick="markReviewed('${r.id}','${id}')">Mark reviewed</button>`:''}</div>`).join('')}</div>`:''}
+  <div class="card"><h2>Activity</h2>${(()=>{
+    const invIds=new Set((invs||[]).map(x=>x.id));
+    const ev=[];
+    (msgs||[]).forEach(m=>ev.push({at:m.created_at,txt:(m.direction==='inbound'?'← Text received: ':'→ Text '+(m.status||'sent')+': ')+(m.body||'').slice(0,50)}));
+    (qs||[]).forEach(x=>{ev.push({at:x.created_at,txt:'Quote created '+money(x.total)});if(x.sent_at)ev.push({at:x.sent_at,txt:'Quote sent'});if(x.viewed_at)ev.push({at:x.viewed_at,txt:'👀 Quote VIEWED'});if(x.approved_at)ev.push({at:x.approved_at,txt:'✅ Quote APPROVED'})});
+    (invs||[]).forEach(x=>{if(x.sent_at)ev.push({at:x.sent_at,txt:'Invoice sent '+money(x.total)});if(x.paid_at)ev.push({at:x.paid_at,txt:'💰 Invoice PAID '+money(x.total)})});
+    (jobs||[]).forEach(j=>{ev.push({at:j.created_at,txt:'Job scheduled: '+(j.title||'')});if(j.completed_at)ev.push({at:j.completed_at,txt:'Job completed'})});
+    (pays||[]).filter(p=>invIds.has(p.invoice_id)).forEach(p=>ev.push({at:p.created_at,txt:'Payment '+money(p.amount)+' ('+p.method+')'}));
+    ev.sort((a,b)=>new Date(b.at)-new Date(a.at));
+    return ev.slice(0,25).map(e=>`<div class="row"><div class="t" style="font-weight:500">${esc(e.txt)}</div><span class="s">${fdt(e.at)}</span></div>`).join('')||'<div class="empty">No activity yet.</div>';
+  })()}</div>
+  <div class="card"><h2>Quotes & invoices</h2>
+    ${(qs||[]).map(x=>`<div class="row"><div><div class="t">Quote ${money(x.total)}</div><div class="s">${esc(x.status)}${x.viewed_at?' \u00b7 \ud83d\udc40 viewed':''}${x.last_send_error?' \u00b7 \u26a0 not sent: '+esc(x.last_send_error):''} · ${fdate(x.created_at)}</div></div><a class="pill p-green" href="/p/quote/${x.public_token}" target="_blank">VIEW</a></div>`).join('')}
+    ${(invs||[]).map(x=>`<div class="row"><div><div class="t">Invoice ${money(x.total)}</div><div class="s">${esc(x.status)}${x.viewed_at?' \u00b7 \ud83d\udc40 viewed':''}${x.last_send_error?' \u00b7 \u26a0 not sent: '+esc(x.last_send_error):''} · ${fdate(x.created_at)}</div></div>${['sent','partial'].includes(x.status)?`<button class="sm ghost" onclick="markPaid('${x.id}',()=>vClient('${id}'))">Mark paid</button>`:`<span class="pill ${x.status==='paid'?'p-money':'p-gray'}">${esc(x.status.toUpperCase())}</span>`}</div>`).join('')||''}
+  </div>`;
+}
+
+
+async function vReferrals(){
+  const cs=await ensureClients(true);
+  const referred=cs.filter(c=>c.referred_by);
+  const referrers={};referred.forEach(c=>{(referrers[c.referred_by]=referrers[c.referred_by]||[]).push(c)});
+  const cm=byId(cs);
+  $('#main').innerHTML=`<div class="hdr"><h1>Referrals</h1><a class="back" href="#/more">\u2190 more</a></div>
+  <div class="card"><h2>Referrers</h2>${Object.entries(referrers).map(([rid,list])=>`
+    <div class="row"><div><div class="t">${esc(clientName(cm[rid]))} \u2014 ${list.length} referral${list.length>1?'s':''}</div>
+    <div class="s">${list.map(x=>esc(clientName(x))+(x.referral_reward_sent_at?' \u2713':' (reward pending)')).join(' \u00b7 ')}</div></div>
+    ${cm[rid]&&cm[rid].phone?`<button class="sm ghost" onclick="referralAsk('${rid}')">Ask again</button>`:''}</div>`).join('')||'<div class="empty">No referrals tracked yet. Set \u201creferred by\u201d on a client.</div>'}</div>
+  <div class="card"><h2>Rewards pending</h2>${referred.filter(c=>!c.referral_reward_sent_at).map(c=>`
+    <div class="row"><div><div class="t">${esc(clientName(cm[c.referred_by]))} \u2192 referred ${esc(clientName(c))}</div>
+    <div class="s">${esc(c.referral_reward||setting('referral_reward','$50 off next service'))}</div></div>
+    <button class="sm" onclick="rewardSent('${c.id}')">Mark reward sent</button></div>`).join('')||'<div class="empty">All caught up.</div>'}
+  <label style="margin-top:10px">Default reward</label>
+  <div style="display:flex;gap:8px"><input id="rf_reward" value="${esc(setting('referral_reward','$50 off next service'))}" style="margin:0"><button class="sm" onclick="saveSetting('referral_reward',document.getElementById('rf_reward').value)&&toast('Saved \u2713')">Save</button></div></div>`;
+}
+window.rewardSent=async id=>{const{error}=await sb.from('clients').update({referral_reward_sent_at:new Date().toISOString()}).eq('id',id);
+  if(error)return toast(error.message);toast('Reward marked sent \u2713');vReferrals()};
+window.referralAsk=async rid=>{
+  const c=byId(S.cache.clients)[rid];if(!c||!c.phone)return;
+  const body=prompt('Referral ask text:',`Hi ${c.first_name}! Know anyone whose pavers need sealing? Send them our way and get ${setting('referral_reward','$50 off your next service')} as a thank-you \u2014 ${S.biz.name}`);
+  if(body===null)return;
+  try{const r=await api('/api/messages/send',{method:'POST',body:JSON.stringify({to:c.phone,client_id:rid,body})});
+    toast(r.text_sent?'Sent \u2713':'NOT sent \u2014 '+(REASONS[r.reason]||r.reason))}catch(e){toast('Error: '+e.message)}
+};
+window.markReviewed=async(rid,cid)=>{
+  const{error}=await sb.from('review_requests').update({status:'reviewed',reviewed_at:new Date().toISOString()}).eq('id',rid);
+  if(error)return toast(error.message);toast('Review marked received \u2b50');vClient(cid);
+};
+window.setReferredBy=async cid=>{
+  const cs=S.cache.clients.filter(c=>c.id!==cid);
+  const pick=prompt('Referred by which client?\n'+cs.map((c,i)=>(i+1)+'. '+clientName(c)).join('\n'),'1');if(pick===null)return;
+  const r=cs[(Number(pick)||1)-1];if(!r)return toast('Invalid pick');
+  const{error}=await sb.from('clients').update({referred_by:r.id}).eq('id',cid);
+  if(error)return toast(error.message);await ensureClients(true);toast('Referred by '+clientName(r)+' \u2713');vClient(cid);
+};
+// ================= CAMPAIGNS (follow-up queue · customers due · blasts) =================
+async function vCampaigns(){
+  await ensureClients();const cm=byId(S.cache.clients);
+  const[{data:camps},{data:fus},{data:due}]=await Promise.all([
+    q('campaigns').order('created_at',{ascending:false}).limit(20),
+    q('followup_steps').eq('status','pending').lte('due_at',new Date(Date.now()+14*864e5).toISOString()).order('due_at').limit(30),
+    q('followup_steps').eq('status','pending').in('step_key',['d90_rebook','d180_seasonal','d365_annual']).lte('due_at',new Date(Date.now()+30*864e5).toISOString()).order('due_at').limit(20)]);
+  $('#main').innerHTML=`<div class="hdr"><h1>Campaigns</h1><button class="sm" onclick="newCampaign()">+ New blast</button></div>
+  <div class="card"><h2>Customers due back</h2>${(due||[]).map(f=>{const c=cm[f.client_id];return `<div class="row"><div><div class="t">${esc(clientName(c))}</div><div class="s">${esc(f.step_key.replace(/_/g,' '))} · due ${fdate(f.due_at)} (${daysUntil(f.due_at)}d)</div></div>${c&&c.phone?`<a class="btn sm ghost" href="#/thread/${encodeURIComponent(c.phone)}">Text</a>`:''}</div>`}).join('')||'<div class="empty">Nobody due in the next 30 days.</div>'}</div>
+  <div class="card"><h2>Automatic follow-up queue (next 14 days)</h2>${(fus||[]).map(f=>`<div class="row"><div><div class="t">${esc(clientName(cm[f.client_id]))}</div><div class="s">${esc(f.step_key.replace(/_/g,' '))}</div></div><span class="pill p-green">${fdate(f.due_at)}</span></div>`).join('')||'<div class="empty">Queue is empty — it fills as invoices get paid.</div>'}
+  <div class="s" style="margin-top:8px">These send automatically. Marketing steps respect consent and quiet hours.</div></div>
+  <div class="card"><h2>Blasts</h2>${(camps||[]).map(c=>`<div class="row"><div><div class="t">${esc(c.name)}</div><div class="s">${esc(c.kind)} · ${esc(c.status)}${c.scheduled_at?' · '+fdt(c.scheduled_at):''}${['sent','sending'].includes(c.status)?' · '+(c.sent_count||0)+' sent'+((c.failed_count||0)?' · '+c.failed_count+' failed':'')+((c.skipped_count||0)?' · '+c.skipped_count+' skipped':''):''}</div></div>
+  <span class="pill ${{draft:'p-gray',scheduled:'p-amber',sending:'p-amber',sent:'p-money',cancelled:'p-gray'}[c.status]||'p-gray'}">${esc(c.status.toUpperCase())}</span>
+  ${c.status==='scheduled'?`<button class="sm warn" onclick="cancelCampaign('${c.id}')">Cancel</button>`:''}</div>`).join('')||'<div class="empty">No blasts yet.</div>'}</div>`;
+}
+window.cancelCampaign=async id=>{
+  const{error}=await sb.from('campaigns').update({status:'cancelled'}).eq('id',id).eq('status','scheduled');
+  if(error)return toast(error.message);toast('Campaign cancelled');vCampaigns();
+};
+window.newCampaign=async()=>{
+  // Preview the audience BEFORE anything is scheduled
+  const cs=await ensureClients();
+  const ok=cs.filter(c=>c.sms_consent&&!c.sms_opted_out&&c.phone).length;
+  const opted=cs.filter(c=>c.sms_opted_out).length;
+  const noPhone=cs.filter(c=>!c.phone).length;
+  if(!confirm(`Audience preview:\n${cs.length} clients total\n${ok} will receive it (consented, not opted out)\n${opted} opted out · ${noPhone} no phone\n\nSends are throttled to 50 per 5-min sweep. Continue?`))return;
+  const name=prompt('Campaign name?','Spring sealing special');if(!name)return;
+  const kinds=['seasonal','holiday','reactivation','customers_due','referral'];
+  const kind=prompt('Kind? '+kinds.join(' / '),'seasonal');if(!kind)return;
+  const body=prompt('Message (use {first_name} and {business_name}):',`Hi {first_name}! Spring special from {business_name} — 10% off sealing booked this month. Want a quote?`);if(!body)return;
+  const when=prompt('Send when? (YYYY-MM-DD HH:MM)',new Date(Date.now()+36e5).toISOString().slice(0,16).replace('T',' '));if(when===null)return;
+  const dt=new Date(when.replace(' ','T'));if(isNaN(dt))return toast('Bad date');
+  const{error}=await sb.from('campaigns').insert({business_id:S.biz.id,name,kind:kinds.includes(kind)?kind:'seasonal',template_body:body,scheduled_at:dt.toISOString(),status:'scheduled'});
+  if(error)return toast(error.message);toast('Blast scheduled ✓ — sends to consented clients only');vCampaigns();
+};
+
+
+async function vDue(){
+  await ensureClients();const cm=byId(S.cache.clients);
+  const{data:due}=await q('followup_steps').eq('status','pending').in('step_key',['d90_rebook','d180_seasonal','d365_annual']).lte('due_at',new Date(Date.now()+60*864e5).toISOString()).order('due_at').limit(50);
+  const over=(due||[]).filter(f=>new Date(f.due_at)<new Date()),soon=(due||[]).filter(f=>new Date(f.due_at)>=new Date());
+  const row=f=>{const c=cm[f.client_id];return `<div class="row"><div><div class="t">${esc(clientName(c))}</div><div class="s">${esc(f.step_key.replace(/_/g,' '))} \u00b7 ${fdate(f.due_at)}</div></div>${c&&c.phone?`<a class="btn sm ghost" href="#/thread/${encodeURIComponent(c.phone)}">Text</a>`:''}<a class="btn sm" href="#/quote-new?client=${f.client_id}">Quote</a></div>`};
+  $('#main').innerHTML=`<div class="hdr"><h1>Customers due</h1><a class="back" href="#/more">\u2190 more</a></div>
+  <div class="grid" style="margin-bottom:14px"><div class="stat"><div class="n">${over.length}</div><div class="l">OVERDUE</div></div><div class="stat"><div class="n">${soon.length}</div><div class="l">DUE SOON</div></div></div>
+  ${over.length?`<div class="card"><h2>Overdue</h2>${over.map(row).join('')}</div>`:''}
+  <div class="card"><h2>Due in the next 60 days</h2>${soon.map(row).join('')||'<div class="empty">Nobody due.</div>'}</div>`;
+}
+// ================= MORE (Money · Texts · Setup · Settings) =================
+function vMore(){
+  $('#main').innerHTML=`<div class="hdr"><h1>More</h1></div>
+  <div class="card">
+    <div class="row click" onclick="location.hash='#/money'"><div class="t">💵 Money — quotes & invoices</div><span>›</span></div>
+    <div class="row click" onclick="location.hash='#/texts'"><div class="t">💬 Texts — all conversations</div><span>›</span></div>
+    <div class="row click" onclick="location.hash='#/leads'"><div class="t">☎️ Leads & missed calls</div><span>›</span></div>
+    <div class="row click" onclick="location.hash='#/setup'"><div class="t">🚀 Setup wizard</div><span>›</span></div>
+    <div class="row click" onclick="location.hash='#/settings'"><div class="t">⚙️ Settings & templates</div><span>›</span></div>
+    <div class="row click" onclick="sb.auth.signOut()"><div class="t" style="color:#b03a2e">Sign out</div></div>
+  </div>`;
+}
+
+// ================= MONEY =================
+async function vMoney(){
+  await ensureClients();const cm=byId(S.cache.clients);
+  const[{data:qs},{data:invs}]=await Promise.all([q('quotes').order('created_at',{ascending:false}).limit(40),q('invoices').order('created_at',{ascending:false}).limit(40)]);
+  const openQ=(qs||[]).filter(x=>x.status==='sent').reduce((s,x)=>s+Number(x.total),0);
+  const unpaid=(invs||[]).filter(x=>['sent','partial'].includes(x.status)).reduce((s,x)=>s+Number(x.total)-Number(x.amount_paid||0),0);
+  $('#main').innerHTML=`<div class="hdr"><h1>Money</h1><a class="back" href="#/more">← more</a></div>
+  <div class="card dark"><div class="t" style="color:#fff">You have <span style="color:var(--money)">${money(openQ)}</span> in open quotes and <span style="color:var(--money)">${money(unpaid)}</span> unpaid.</div></div>
+  <div class="card"><h2>Quotes</h2>${(qs||[]).map(x=>`<div class="row"><div><div class="t">${money(x.total)} — ${esc(clientName(cm[x.client_id]))}</div><div class="s">${esc(x.status)}${x.viewed_at?' \u00b7 \ud83d\udc40 viewed':''}${x.last_send_error?' \u00b7 \u26a0 not sent: '+esc(x.last_send_error):''} · ${fdate(x.created_at)}</div></div>${x.status==='draft'?`<button class="sm" onclick="sendThing('quote','${x.id}')">Send</button>`:`<a class="pill p-green" href="/p/quote/${x.public_token}" target="_blank">VIEW</a>`}</div>`).join('')||'<div class="empty">None.</div>'}</div>
+  <div class="card"><h2>Invoices</h2>${(invs||[]).map(x=>`<div class="row"><div><div class="t">${money(x.total)} — ${esc(clientName(cm[x.client_id]))}</div><div class="s">${esc(x.status)}${x.viewed_at?' \u00b7 \ud83d\udc40 viewed':''}${x.last_send_error?' \u00b7 \u26a0 not sent: '+esc(x.last_send_error):''} · ${fdate(x.created_at)}</div></div>
+    ${x.status==='draft'?`<button class="sm" onclick="sendThing('invoice','${x.id}')">Send</button>`:x.status==='paid'?'<span class="pill p-money">PAID</span>':`<a class="pill p-green" href="/p/invoice/${x.public_token}" target="_blank">VIEW</a>`}
+    ${['sent','partial'].includes(x.status)?`<button class="sm ghost" onclick="markPaid('${x.id}')">Mark paid</button>`:''}
+    ${['draft','sent'].includes(x.status)?`<button class="sm warn" onclick="voidInv('${x.id}')">Void</button>`:''}</div>`).join('')||'<div class="empty">None.</div>'}</div>`;
+}
+window.voidInv=async id=>{
+  if(!confirm('Void this invoice?'))return;
+  const{error}=await sb.from('invoices').update({status:'void'}).eq('id',id);
+  if(error)return toast(error.message);toast('Voided');route();
+};
+window.sendThing=async(kind,id)=>{try{const r=await api(`/api/${kind}s/${id}/send`,{method:'POST'});toast(r.text_sent?'Text sent ✓':'Marked sent — text blocked ('+(r.reason||'consent/A2P')+')')}catch(e){toast('Error: '+e.message)}route()};
+window.markPaid=async(id,after)=>{
+  const m=prompt('Payment method? cash / check / card / zelle / venmo / other','cash');if(m===null)return;
+  let cid=null;
+  try{const r=await api('/api/invoices/'+id+'/mark-paid',{method:'POST',body:JSON.stringify({method:m.trim().toLowerCase()})});
+    toast(r.followups_started?'Paid ✓':'Recorded ('+r.status+')');
+    const{data:inv}=await sb.from('invoices').select('client_id').eq('id',id).single();cid=inv&&inv.client_id;
+  }catch(e){toast('Error: '+e.message)}
+  if(cid)return openReview(cid,after);
+  after?after():route();
+};
+// ---------- Manual Review Request screen ----------
+window.openReview=async(clientId,after)=>{
+  const c=byId(await ensureClients())[clientId];if(!c)return after?after():route();
+  const b=S.biz;
+  const gl=b.review_link_google,fl=b.review_link_facebook;
+  const dest=setting('review_default',b.review_destination||'google');
+  const defBody=`Thanks again ${c.first_name}! If you were happy with the job, would you mind leaving us a quick review? It really helps our small business. {link}`;
+  const ov=document.createElement('div');ov.id='rv_ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML=`<div class="card" style="max-width:440px;width:100%;margin:0">
+    <h2>\u2b50 Ask ${esc(c.first_name)} for a review</h2>
+    <label>Send to</label>
+    ${gl?`<div class="row"><div class="t">Google review</div><input type="radio" name="rv_ch" value="google" ${dest==='google'?'checked':''} style="width:auto"></div>`:''}
+    ${fl?`<div class="row"><div class="t">Facebook review</div><input type="radio" name="rv_ch" value="facebook" ${dest==='facebook'?'checked':''} style="width:auto"></div>`:''}
+    ${!gl&&!fl?'<div class="s">No review links set \u2014 add them in Settings \u2192 Social & Reviews first.</div>':''}
+    <label style="margin-top:10px">Message ({link} becomes the review link)</label>
+    <textarea id="rv_body" rows="4">${esc(defBody)}</textarea>
+    <div class="actions">
+      <button onclick="sendReview('${c.id}')" ${(!gl&&!fl)||!c.phone?'disabled':''}>Send now</button>
+      <button class="ghost" onclick="scheduleReview('${c.id}')">Tomorrow</button>
+      <button class="ghost" onclick="closeReview()">Skip</button>
+    </div>
+    ${!c.phone?'<div class="s" style="margin-top:8px">Client has no phone on file.</div>':''}
+  </div>`;
+  document.body.appendChild(ov);
+  window.__rvAfter=after;
+};
+window.closeReview=()=>{const o=document.getElementById('rv_ov');if(o)o.remove();const f=window.__rvAfter;window.__rvAfter=null;f?f():route()};
+window.sendReview=async cid=>{
+  const c=byId(S.cache.clients)[cid];
+  const ch=(document.querySelector('input[name=rv_ch]:checked')||{}).value||'google';
+  // Create the tracked request first; its id is the click-tracking token
+  const{data:rr}=await sb.from('review_requests').insert({business_id:S.biz.id,client_id:cid,status:'pending',destination:ch}).select().single();
+  const raw=ch==='facebook'?S.biz.review_link_facebook:S.biz.review_link_google;
+  const link=rr?location.origin+'/r/'+rr.id:raw;
+  const body=document.getElementById('rv_body').value.replace('{link}',link||'');
+  try{const r=await api('/api/messages/send',{method:'POST',body:JSON.stringify({to:c.phone,client_id:cid,body})});
+    if(r.text_sent){await sb.from('followup_steps').update({status:'skipped'}).eq('client_id',cid).eq('step_key','d3_review').eq('status','pending');
+      if(rr)await sb.from('review_requests').update({status:'sent',sent_at:new Date().toISOString()}).eq('id',rr.id);}
+    else if(rr)await sb.from('review_requests').delete().eq('id',rr.id);
+    toast(r.text_sent?'Review request sent \u2713 (auto review skipped)':'NOT sent \u2014 '+(REASONS[r.reason]||r.reason||'blocked'))}catch(e){toast('Error: '+e.message)}
+  closeReview();
+};
+window.scheduleReview=async cid=>{
+  const due=new Date();due.setDate(due.getDate()+1);due.setHours(10,0,0,0);
+  // Move the existing pending auto-review instead of stacking a second one
+  const{data:ex}=await sb.from('followup_steps').select('id').eq('client_id',cid).eq('step_key','d3_review').eq('status','pending').limit(1);
+  const{error}=ex&&ex.length
+    ?await sb.from('followup_steps').update({due_at:due.toISOString()}).eq('id',ex[0].id)
+    :await sb.from('followup_steps').insert({business_id:S.biz.id,client_id:cid,step_key:'d3_review',due_at:due.toISOString(),status:'pending'});
+  toast(error?error.message:'Review request scheduled for tomorrow 10am \u2713');closeReview();
+};
+
+// ================= TEXTS =================
+async function vTexts(){
+  const{data:ms}=await q('messages').order('created_at',{ascending:false}).limit(200);
+  const threads={};for(const m of ms||[]){const num=m.direction==='inbound'?m.from_number:m.to_number;if(num&&!threads[num])threads[num]=m}
+  await ensureClients();const byPhone=Object.fromEntries(S.cache.clients.filter(c=>c.phone).map(c=>[c.phone,c]));
+  $('#main').innerHTML=`<div class="hdr"><h1>Texts</h1><a class="back" href="#/more">← more</a></div>
+  <div class="card">${Object.entries(threads).map(([num,m])=>{const c=byPhone[num];
+  return `<div class="row click" onclick="location.hash='#/thread/${encodeURIComponent(num)}'"><div><div class="t">${esc(c?clientName(c):num)}</div><div class="s">${m.direction==='inbound'?'← ':'→ '}${esc((m.body||'').slice(0,64))} · ${ago(m.created_at)} ago</div></div></div>`}).join('')||'<div class="empty">No messages yet.</div>'}</div>`;
+}
+async function vThread(num){
+  const{data:ms}=await q('messages').or(`from_number.eq.${num},to_number.eq.${num}`).order('created_at').limit(200);
+  await ensureClients();const c=S.cache.clients.find(x=>x.phone===num);
+  $('#main').innerHTML=`<div class="hdr"><h1>${esc(c?clientName(c):num)}</h1><a class="back" href="#/texts">← texts</a></div>
+  <div class="card"><div class="mrow">${(ms||[]).map(m=>`<div class="${m.direction==='inbound'?'msg-in':'msg-out'}">${esc(m.body)}</div>`).join('')||'<div class="empty">Empty thread</div>'}</div>
+  <div style="display:flex;gap:8px;margin-top:12px"><input id="th_body" placeholder="Type a reply…" style="margin:0"><button class="sm" onclick="sendReply('${esc(num)}','${c?c.id:''}')">Send</button></div></div>`;
+  window.scrollTo(0,document.body.scrollHeight);
+}
+window.sendReply=async(num,cid)=>{const body=$('#th_body').value.trim();if(!body)return;
+  try{await api('/api/messages/send',{method:'POST',body:JSON.stringify({to:num,client_id:cid||null,body})});toast('Sent ✓');vThread(num)}catch(e){toast('Error: '+e.message)}};
+
+// ================= SETUP WIZARD (profile → services → import → test → done) =================
+let SW=0;
+async function vSetup(step){
+  if(step!==undefined)SW=step;const b=S.biz;
+  const bar=`<div class="steps">${[0,1,2,3].map(i=>`<div class="${i<=SW?'done':''}"></div>`).join('')}</div>`;
+  const screens=[
+`<h2>1 · Business profile</h2>
+<label>Business name</label><input id="sw_name" value="${esc(b.name)}">
+<label>Public phone</label><input id="sw_phone" value="${esc(b.phone||'')}">
+<label>Service area</label><input id="sw_area" value="${esc(b.service_area||'')}" placeholder="Nocatee, Ponte Vedra, St. Johns County">
+<label>Google review link</label><input id="sw_rg" value="${esc(b.review_link_google||'')}" placeholder="https://g.page/r/…/review">
+<button class="wide" onclick="swSaveProfile()">Save & continue →</button>`,
+`<h2>2 · Services & pricing</h2><div class="s" style="margin-bottom:8px">These power the quote builder.</div>
+<div id="sw_svcs">${catalog().map((s,i)=>`<div class="row"><div class="t">${esc(s.name)}</div><div class="s">${s.unit==='sqft'?'$'+s.rate+'/sq ft':'flat rate'}</div><button class="sm warn" onclick="swDelSvc(${i})">✕</button></div>`).join('')}</div>
+<label>Add service</label><input id="sw_sname" placeholder="Travertine sealing">
+<label>Rate ($/sq ft — leave blank for flat-rate)</label><input id="sw_srate" type="number" step="0.01" placeholder="1.60">
+<div class="actions"><button class="ghost" onclick="swAddSvc()">+ Add</button><button onclick="vSetup(2)">Continue →</button></div>`,
+`<h2>3 · Import your customers</h2><div class="s" style="margin-bottom:8px">CSV columns: first_name, last_name, phone, email, address (header row required). Imports set attested SMS consent — your existing customers only, never purchased lists.</div>
+<label class="btn wide ghost">📄 Choose CSV file<input type="file" accept=".csv,text/csv" hidden onchange="swImport(this.files[0])"></label>
+<div id="sw_imp" class="s" style="margin-top:10px"></div>
+<button class="wide" style="margin-top:10px" onclick="vSetup(3)">Continue →</button>`,
+`<h2>4 · Test your quote form</h2>
+<div class="s">This is the page missed callers land on. Open it, submit a test, and watch it appear in Leads.</div>
+<a class="btn wide" style="margin-top:10px" target="_blank" href="/q/${b.id}">Open my quote form</a>
+<div class="s" style="margin-top:12px">Still manual (account work, not app work):<br>· Twilio number + webhooks<br>· A2P 10DLC approval (texting stays off until approved)<br>· Stripe Connect for card payments</div>
+<button class="wide" style="margin-top:12px" onclick="location.hash='#/'">Finish → Dashboard</button>`];
+  $('#main').innerHTML=`<div class="hdr"><h1>Setup</h1><a class="back" href="#/more">← more</a></div><div class="card">${bar}${screens[SW]}</div>`;
+}
+window.swSaveProfile=async()=>{
+  const upd={name:$('#sw_name').value.trim(),phone:$('#sw_phone').value.trim()||null,service_area:$('#sw_area').value.trim()||null,review_link_google:$('#sw_rg').value.trim()||null};
+  const{error}=await sb.from('businesses').update(upd).eq('id',S.biz.id);
+  if(error)return toast(error.message);Object.assign(S.biz,upd);toast('Saved ✓');vSetup(1);
+};
+window.swAddSvc=async()=>{
+  const name=$('#sw_sname').value.trim();if(!name)return toast('Name the service');
+  const rate=Number($('#sw_srate').value);
+  const cat=catalog().concat([{name,rate:rate||0,unit:rate?'sqft':'flat'}]);
+  const{error}=await sb.from('businesses').update({service_catalog:cat}).eq('id',S.biz.id);
+  if(error)return toast(error.message);S.biz.service_catalog=cat;vSetup(1);
+};
+window.swDelSvc=async i=>{const cat=catalog();cat.splice(i,1);
+  const{error}=await sb.from('businesses').update({service_catalog:cat}).eq('id',S.biz.id);
+  if(error)return toast(error.message);S.biz.service_catalog=cat;vSetup(1)};
+function parseCsv(text){const rows=[];let row=[],f='',inQ=false;const src=text.replace(/^\uFEFF/,'');
+  for(let i=0;i<src.length;i++){const c=src[i];
+    if(inQ){if(c==='"'){if(src[i+1]==='"'){f+='"';i++}else inQ=false}else f+=c}
+    else if(c==='"')inQ=true;else if(c===','){row.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&src[i+1]==='\n')i++;row.push(f);f='';if(row.some(x=>x.trim()))rows.push(row);row=[]}
+    else f+=c}
+  if(f!==''||row.length){row.push(f);if(row.some(x=>x.trim()))rows.push(row)}return rows}
+const normPhone=r=>{if(!r)return null;let s=String(r).trim().replace(/\s*(x|ext\.?)\s*\d+$/i,'');const plus=s.startsWith('+');const d=s.replace(/\D/g,'');
+  if(plus)return d.length===11&&d[0]==='1'?'+'+d:null;if(d.length===10)return'+1'+d;if(d.length===11&&d[0]==='1')return'+'+d;return null};
+window.swImport=async file=>{
+  if(!file)return;const rows=parseCsv(await file.text());
+  if(rows.length<2)return $('#sw_imp').textContent='CSV needs a header + rows.';
+  const h=rows[0].map(x=>x.trim().toLowerCase().replace(/\s+/g,'_'));const col=n=>h.indexOf(n);
+  let ok=0,bad=0,dupe=0;const seen=new Set();const now=new Date().toISOString();
+  $('#sw_imp').textContent='Importing…';
+  for(const r of rows.slice(1)){
+    const g=n=>col(n)>=0?(r[col(n)]||'').trim():'';
+    let first=g('first_name'),last=g('last_name');
+    if(!first&&g('name')){const p=g('name').split(/\s+/);first=p[0];last=p.slice(1).join(' ')}
+    const phone=normPhone(g('phone'));if(!phone){bad++;continue}
+    if(seen.has(phone)){dupe++;continue}seen.add(phone);
+    const{data:c,error}=await sb.from('clients').insert({business_id:S.biz.id,first_name:first||'Client',last_name:last||null,phone,email:g('email')||null,sms_consent:true,sms_consent_source:'import_attested',sms_consent_at:now,source:'csv_import'}).select().single();
+    if(error){bad++;continue}
+    if(g('address'))await sb.from('properties').insert({business_id:S.biz.id,client_id:c.id,address:g('address')});
+    ok++;$('#sw_imp').textContent=`Imported ${ok}…`;
+  }
+  await ensureClients(true);
+  $('#sw_imp').innerHTML=`<b>✓ ${ok} imported</b>${bad?` · ${bad} skipped (bad phone)`:''}${dupe?` · ${dupe} duplicates`:''}`;
+};
+
+
+// ================= MEASURE (satellite trace · polygon area · save to property) =================
+let M={pts:[],layer:null,map:null};
+async function vMeasure(params){
+  const clientId=params.get('client')||'',ret=params.get('return')||'';
+  await ensureClients();
+  let addr='',prop=null;
+  if(clientId){const{data:props}=await sb.from('properties').select('*').eq('client_id',clientId).limit(1);prop=(props||[])[0];addr=prop?prop.address:''}
+  $('#main').innerHTML=`<div class="hdr"><h1>📐 Measure</h1><a class="back" href="${ret==='quote'?'#/quote-new?client='+clientId:'#/clients'}">← back</a></div>
+  <div class="card">
+    <div style="display:flex;gap:8px"><input id="m_addr" placeholder="Property address" value="${esc(addr)}" style="margin:0"><button class="sm" onclick="mGeocode()">Find</button></div>
+    <div id="map" style="margin-top:10px"></div>
+    <div class="mtotal"><span id="m_area">0</span> sq ft<small>Tap corners of the paver area · double-tap to close</small></div>
+    <div class="actions">
+      <button class="ghost" onclick="mUndo()">↩ Undo point</button>
+      <button class="ghost" onclick="mClear()">Clear</button>
+      <button onclick="mUse('${clientId}','${ret}','${prop?prop.id:''}')">✓ Use this measurement</button>
+    </div>
+  </div>`;
+  M={pts:[],layer:null,map:null};
+  const map=L.map('map',{doubleClickZoom:false}).setView([prop&&prop.lat?prop.lat:30.1,prop&&prop.lng?prop.lng:-81.4],prop&&prop.lat?20:11);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:21,maxNativeZoom:19,attribution:'Esri, Maxar, Earthstar Geographics'}).addTo(map);
+  M.map=map;
+  map.on('click',e=>{M.pts.push([e.latlng.lat,e.latlng.lng]);mDraw()});
+  if(addr&&!(prop&&prop.lat))mGeocode();
+}
+window.mGeocode=async()=>{
+  const q=$('#m_addr').value.trim();if(!q)return;
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));
+    const j=await r.json();if(!j.length)return toast('Address not found');
+    M.map.setView([+j[0].lat,+j[0].lon],20)}catch(e){toast('Geocode failed — pan manually')}
+};
+function mArea(pts){ // shoelace on a local equirectangular projection — fine at parcel scale
+  if(pts.length<3)return 0;
+  const R=6378137,lat0=pts[0][0]*Math.PI/180;
+  const xy=pts.map(p=>[R*(p[1]*Math.PI/180)*Math.cos(lat0),R*(p[0]*Math.PI/180)]);
+  let s=0;for(let i=0;i<xy.length;i++){const[x1,y1]=xy[i],[x2,y2]=xy[(i+1)%xy.length];s+=x1*y2-x2*y1}
+  return Math.abs(s/2)*10.7639; // m² → sq ft
+}
+function mDraw(){
+  if(M.layer)M.map.removeLayer(M.layer);
+  if(M.pts.length)M.layer=L.polygon(M.pts,{color:'#7bc67b',weight:3,fillOpacity:.25}).addTo(M.map);
+  $('#m_area').textContent=Math.round(mArea(M.pts)).toLocaleString();
+}
+window.mUndo=()=>{M.pts.pop();mDraw()};
+window.mClear=()=>{M.pts=[];mDraw()};
+window.mUse=async(clientId,ret,propId)=>{
+  const area=Math.round(mArea(M.pts));
+  if(area<10)return toast('Trace the area first — tap the corners');
+  if(propId){ // save onto the property for next time
+    const{data:p}=await sb.from('properties').select('saved_measurements,lat,lng').eq('id',propId).single();
+    const sm=Array.isArray(p.saved_measurements)?p.saved_measurements:[];
+    sm.push({label:'Satellite trace',area_sqft:area,type:'polygon',measured_at:new Date().toISOString()});
+    const ctr=M.pts.length?M.pts.reduce((a,b)=>[a[0]+b[0]/M.pts.length,a[1]+b[1]/M.pts.length],[0,0]):[null,null];
+    await sb.from('properties').update({saved_measurements:sm,lat:p.lat||ctr[0],lng:p.lng||ctr[1]}).eq('id',propId);
+  }
+  toast(area.toLocaleString()+' sq ft saved ✓');
+  if(ret==='quote'){sessionStorage.setItem('measured_sqft',String(area));location.hash='#/quote-new?client='+clientId}
+  else location.hash=clientId?'#/client/'+clientId:'#/clients';
+};
+
+// ================= SETTINGS =================
+async function vSettings(){
+  const{data:tpls}=await q('message_templates').order('key');S.cache.tpls=tpls||[];const b=S.biz;
+  $('#main').innerHTML=`<div class="hdr"><h1>Settings</h1><a class="back" href="#/more">← more</a></div>
+  <div class="card"><h2>Business</h2>
+  <label>Name</label><input id="st_name" value="${esc(b.name)}">
+  <label>Public phone</label><input id="st_phone" value="${esc(b.phone||'')}">
+  <label>Google review link</label><input id="st_rg" value="${esc(b.review_link_google||'')}">
+  <label>Facebook review link</label><input id="st_rf" value="${esc(b.review_link_facebook||'')}">
+  <label>Quiet hours (marketing texts hold)</label>
+  <div style="display:flex;gap:8px"><input id="st_qs" value="${esc((b.quiet_hours||{}).start||'20:00')}"><input id="st_qe" value="${esc((b.quiet_hours||{}).end||'08:00')}"></div>
+  <label>Preferred navigation app</label>
+  <select id="st_nav"><option value="ask" ${setting('nav_pref','ask')==='ask'?'selected':''}>Ask every time</option><option value="google" ${setting('nav_pref','ask')==='google'?'selected':''}>Google Maps</option><option value="apple" ${setting('nav_pref','ask')==='apple'?'selected':''}>Apple Maps</option></select>
+  <button onclick="saveSettings()">Save</button>
+  <div class="s" style="margin-top:10px">Twilio: <b>${esc(b.twilio_number||'not provisioned')}</b> · A2P: <b>${esc(b.a2p_status)}</b> · Plan: <b>${esc(b.plan)}</b></div></div>
+  <div class="card"><h2>Social & Reviews</h2>
+  ${['gbp_url:Google Business Profile link','facebook_page:Facebook page','instagram:Instagram','nextdoor:Nextdoor'].map(x=>{const[k,l]=x.split(':');return `<label>${l}</label><input id="so_${k}" value="${esc(setting(k,''))}">`}).join('')}
+  <label>Default review destination</label>
+  <select id="so_dest"><option value="google" ${setting('review_default','google')==='google'?'selected':''}>Google</option><option value="facebook" ${setting('review_default','google')==='facebook'?'selected':''}>Facebook</option></select>
+  <label>Review request delay (days after paid)</label><input id="so_delay" type="number" value="${setting('review_delay_days',3)}">
+  <button onclick="saveSocial()">Save social</button>
+  <div class="s" style="margin-top:8px">Review links themselves are in the Business card above.</div></div>
+  <div class="card"><h2>Notifications</h2>
+  ${['new_lead:New lead','missed_call:Missed call','quote_viewed:Quote viewed','quote_approved:Quote approved','invoice_paid:Invoice paid','job_reminder:Job reminder','failed_sms:Failed SMS','followup_due:Follow-up due'].map(x=>{const[k,l]=x.split(':');const on=(setting('notifications',{})[k])!==false;
+    return `<div class="row"><div class="t">${l}</div><input type="checkbox" data-nk="${k}" ${on?'checked':''} style="width:auto" onchange="saveNotif()"></div>`}).join('')}
+  <div class="s" style="margin-top:8px">Preferences stored now; shown in-app. Push/email delivery ships with the mobile app.</div></div>
+  <div class="card"><h2>Message templates (${(tpls||[]).length})</h2>
+  ${(tpls||[]).map(t=>`<div class="row click" onclick="editTpl('${t.id}')"><div><div class="t">${esc(t.key)}</div><div class="s">${esc((t.body||'').slice(0,80))}…</div></div></div>`).join('')||'<div class="empty">Not seeded — run the onboarding script or Setup wizard.</div>'}</div>`;
+}
+window.saveSocial=async()=>{
+  const st={...(S.biz.settings||{})};
+  ['gbp_url','facebook_page','instagram','nextdoor'].forEach(k=>st[k]=document.getElementById('so_'+k).value.trim());
+  st.review_default=document.getElementById('so_dest').value;
+  st.review_delay_days=Number(document.getElementById('so_delay').value)||3;
+  const{error}=await sb.from('businesses').update({settings:st}).eq('id',S.biz.id);
+  if(error)return toast(error.message);S.biz.settings=st;toast('Social settings saved \u2713');
+};
+window.saveNotif=async()=>{
+  const n={};document.querySelectorAll('[data-nk]').forEach(el=>n[el.dataset.nk]=el.checked);
+  await saveSetting('notifications',n);toast('Saved \u2713');
+};
+window.saveSettings=async()=>{
+  const upd={name:$('#st_name').value.trim(),phone:$('#st_phone').value.trim()||null,review_link_google:$('#st_rg').value.trim()||null,review_link_facebook:$('#st_rf').value.trim()||null,quiet_hours:{start:$('#st_qs').value.trim()||'20:00',end:$('#st_qe').value.trim()||'08:00'},settings:{...(S.biz.settings||{}),nav_pref:$('#st_nav').value}};
+  const{error}=await sb.from('businesses').update(upd).eq('id',S.biz.id);
+  if(error)return toast(error.message);Object.assign(S.biz,upd);toast('Saved ✓');
+};
+window.editTpl=async id=>{const t=S.cache.tpls.find(x=>x.id===id);if(!t)return;
+  const body=prompt('Edit "'+t.key+'" — {braces} auto-fill:',t.body);if(body===null||body===t.body)return;
+  const{error}=await sb.from('message_templates').update({body}).eq('id',id);
+  if(error)return toast(error.message);toast('Updated ✓');vSettings()};
+</script></body></html>
