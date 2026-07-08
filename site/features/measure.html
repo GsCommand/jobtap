@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Measure Driveway Square Footage Online — Free Satellite Tool | JobTap</title>
+<meta name="description" content="Type an address, trace the driveway or pool deck on satellite view, and get an instant square footage and example price. No login, no signup — try the exact tool JobTap uses to build quotes.">
+<meta property="og:title" content="Measure Driveway Square Footage Online — Free Satellite Tool">
+<meta property="og:description" content="Trace a driveway or pool deck on satellite view and get sq ft in seconds. The same tool JobTap uses to build real quotes.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getjobtap.com/features/measure.html">
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+<script>document.documentElement.classList.remove('no-js')</script>
+
+<header id="site-header">
+  <div class="wrap">
+    <a href="/" class="logo">Job<span>Tap</span></a>
+    <nav id="site-nav" aria-label="Primary">
+      <a href="/">Home</a>
+      <a href="/features/measure.html" aria-current="page">Measure Tool</a>
+      <a href="/industries/paver-sealing.html">Paver Sealing</a>
+      <a href="/pricing.html">Pricing</a>
+    </nav>
+    <div class="header-cta">
+      <a class="btn" href="#">Get JobTap</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="feature-hero">
+    <div class="wrap">
+      <h1>Measure the job before you leave your truck</h1>
+      <p class="sub">Type an address, trace the driveway or pool deck on satellite view, and see the square footage — and an example price — in about 30 seconds. No login required.</p>
+    </div>
+  </section>
+
+  <section class="section on-white tight">
+    <div class="wrap">
+
+      <div class="measure-demo">
+        <div class="measure-live">
+          <div class="measure-controls">
+            <input type="text" id="ms-addr" placeholder="Type a property address…" autocomplete="off">
+            <button class="btn on-card" id="ms-find" type="button">Find</button>
+          </div>
+          <div id="measure-map"></div>
+          <div class="measure-total">
+            <div class="sqft"><span id="ms-area">0</span> sq ft</div>
+            <div class="price">≈ $<span id="ms-price">0</span> example price at $1.50/sq ft</div>
+            <small>Tap the corners of the area on the map · at least 3 points</small>
+          </div>
+          <div class="measure-actions">
+            <button class="btn secondary-onlight" id="ms-undo" type="button">Undo point</button>
+            <button class="btn secondary-onlight" id="ms-clear" type="button">Clear</button>
+            <button class="btn on-card" id="ms-save" type="button">Save this measurement</button>
+          </div>
+          <div id="ms-save-cta" style="display:none;margin-top:14px;padding:14px;background:#eef7ee;border-radius:12px">
+            <p style="font-size:14px;color:#22301f;font-weight:600">Nice trace. Saving a measurement to a client and quote requires a JobTap account.</p>
+            <a class="btn on-card" href="#" style="margin-top:10px;display:inline-block">Get JobTap</a>
+          </div>
+          <p class="measure-hint">Example price only — the $1.50/sq ft rate is a typical paver sealing starting point, not a quote.</p>
+        </div>
+        <div class="measure-fallback">
+          <p><strong>This demo needs JavaScript.</strong></p>
+          <p style="margin-top:8px">With JavaScript on, you can type an address, trace the driveway on satellite view, and see live square footage — the same tool JobTap uses to build real quotes.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section on-white">
+    <div class="wrap">
+      <h2 style="color:#22301f">The problem with quoting off a guess</h2>
+      <p style="font-size:15px;color:#3a463a;max-width:680px">Quoting sq-ft work off eyeballing a curb means you're either scaring off the customer with too high a number, or eating the loss when the driveway turns out bigger than you thought. Walking it with a tape measure works — but it means a second trip before you can even send a price.</p>
+    </div>
+  </section>
+
+  <section class="section on-white">
+    <div class="wrap">
+      <h2 style="color:#22301f">How JobTap does it</h2>
+      <div class="split">
+        <div class="shot-frame"><!-- SCREENSHOT: measure tool inside the quote builder, sq-ft filled in -->Measurement flowing into a quote</div>
+        <p style="font-size:15px;color:#3a463a">Type the address, the satellite view loads over the property, and you tap the corners of the driveway, pool deck, or patio. The square footage updates live as you go. Inside the real app, that number drops straight into the quote builder — no re-typing, no second guess.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section on-white">
+    <div class="wrap">
+      <h2 style="color:#22301f">What fires automatically vs. what you tap</h2>
+      <div class="fires-grid">
+        <div class="fires-box auto">
+          <h3>Fires automatically</h3>
+          <ul>
+            <li>Satellite imagery loads once you find the address</li>
+            <li>Square footage recalculates live as you trace</li>
+            <li>Saved measurements stay on the property for next time</li>
+          </ul>
+        </div>
+        <div class="fires-box tap">
+          <h3>You tap</h3>
+          <ul>
+            <li>Type or confirm the address</li>
+            <li>Tap each corner of the area</li>
+            <li>Undo, clear, or save the trace into a quote</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section on-white">
+    <div class="wrap">
+      <h2 style="color:#22301f">Questions</h2>
+      <div class="faq-item">
+        <h3>Do I need an account to try this?</h3>
+        <p>No. This demo runs with no login. Saving a measurement to a real client and quote requires a JobTap account.</p>
+      </div>
+      <div class="faq-item">
+        <h3>How accurate is it?</h3>
+        <p>It's a satellite trace — accurate enough to build a fair quote, not a substitute for a legal survey.</p>
+      </div>
+      <div class="faq-item">
+        <h3>What if the address doesn't center correctly?</h3>
+        <p>Pan and zoom the map by hand and trace the driveway or pool deck you can see — the sq-ft math doesn't care how you got there.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="wrap card dark center">
+      <h2 style="color:#fff;margin-bottom:6px">Get the measure tool inside your quotes</h2>
+      <p style="color:rgba(255,255,255,.78);font-size:15px;max-width:480px;margin:0 auto 18px">Every quote you send can start with a real trace instead of a guess.</p>
+      <div class="cta-row" style="justify-content:center">
+        <a class="btn lg" href="#">Get JobTap</a>
+        <a class="btn ghost lg" href="mailto:hello@getjobtap.com?subject=Book%20a%20demo">Book a demo</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer id="site-footer">
+  <div class="wrap">
+    <div class="fcols">
+      <div>
+        <h4>JobTap</h4>
+        <a href="/">Home</a>
+        <a href="/features/measure.html">Measure Tool</a>
+        <a href="/pricing.html">Pricing</a>
+      </div>
+      <div>
+        <h4>Industries</h4>
+        <a href="/industries/paver-sealing.html">Paver Sealing</a>
+        <span style="display:block;color:rgba(255,255,255,.4);font-size:14px;padding:5px 0">Pressure Washing — coming</span>
+        <span style="display:block;color:rgba(255,255,255,.4);font-size:14px;padding:5px 0">Lawn Care — coming</span>
+      </div>
+      <div>
+        <h4>Get in touch</h4>
+        <a href="mailto:hello@getjobtap.com">hello@getjobtap.com</a>
+      </div>
+      <div>
+        <h4>Get started</h4>
+        <a href="#">Get JobTap</a>
+      </div>
+    </div>
+    <div class="fbottom">© 2026 JobTap. One guy, one truck, one phone.</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  if(!window.L) return;
+  var RATE = 1.50; // typical paver sealing sq-ft rate — example price only
+  var pts = [], marks = [], poly = null, map = null;
+
+  var mapEl = document.getElementById('measure-map');
+  map = L.map(mapEl, { doubleClickZoom:false }).setView([30.1975,-81.3925], 11); // Jacksonville-area default
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom:21, maxNativeZoom:19, attribution:'Esri, Maxar, Earthstar Geographics'
+  }).addTo(map);
+
+  function area(points){ // planar shoelace on local-meter projection — fine at parcel scale
+    if(points.length < 3) return 0;
+    var R = 6378137, lat0 = points[0].lat*Math.PI/180;
+    var xy = points.map(function(p){ return [R*p.lng*Math.PI/180*Math.cos(lat0), R*p.lat*Math.PI/180]; });
+    var s = 0;
+    for(var i=0;i<xy.length;i++){
+      var a=xy[i], b=xy[(i+1)%xy.length];
+      s += a[0]*b[1] - b[0]*a[1];
+    }
+    return Math.abs(s/2) * 10.7639; // m² → sq ft
+  }
+
+  function redraw(){
+    if(poly) map.removeLayer(poly);
+    if(pts.length >= 2) poly = L.polygon(pts, {color:'#2D6A22', weight:3, fillOpacity:.25}).addTo(map);
+    var sqft = Math.round(area(pts));
+    document.getElementById('ms-area').textContent = sqft.toLocaleString();
+    document.getElementById('ms-price').textContent = (sqft*RATE).toLocaleString(undefined,{maximumFractionDigits:0});
+    document.getElementById('ms-save-cta').style.display = 'none';
+  }
+
+  map.on('click', function(e){
+    pts.push(e.latlng);
+    marks.push(L.circleMarker(e.latlng, {radius:5, color:'#2D6A22', fillColor:'#7bc67b', fillOpacity:1}).addTo(map));
+    redraw();
+  });
+
+  document.getElementById('ms-undo').addEventListener('click', function(){
+    pts.pop();
+    var m = marks.pop();
+    if(m) map.removeLayer(m);
+    redraw();
+  });
+  document.getElementById('ms-clear').addEventListener('click', function(){
+    pts = [];
+    marks.forEach(function(m){ map.removeLayer(m); });
+    marks = [];
+    redraw();
+  });
+  document.getElementById('ms-save').addEventListener('click', function(){
+    if(area(pts) < 10){
+      document.getElementById('ms-area').scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+    document.getElementById('ms-save-cta').style.display = 'block';
+  });
+
+  var findBtn = document.getElementById('ms-find');
+  var addrInput = document.getElementById('ms-addr');
+  function geocode(){
+    var addr = addrInput.value.trim();
+    if(!addr) return;
+    findBtn.disabled = true;
+    findBtn.textContent = 'Finding…';
+    fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(j && j[0]){
+          map.setView([+j[0].lat, +j[0].lon], 20);
+        } else {
+          alert('Address not found — pan and zoom the map to your property.');
+        }
+      })
+      .catch(function(){
+        alert('Geocoding failed — pan and zoom the map to your property.');
+      })
+      .finally(function(){
+        findBtn.disabled = false;
+        findBtn.textContent = 'Find';
+      });
+  }
+  findBtn.addEventListener('click', geocode);
+  addrInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); geocode(); } });
+})();
+</script>
+</body>
+</html>
